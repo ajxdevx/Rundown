@@ -60,13 +60,18 @@ export default function InfoPanel({ open, onClose }: InfoPanelProps) {
       const maxHeight = Math.max(180, window.innerHeight - VIEWPORT_PAD * 2);
       const panelHeight = Math.min(panel.offsetHeight || 480, maxHeight);
 
-      let left = rect.left - PANEL_WIDTH - GAP;
+      let left = rect.right - PANEL_WIDTH;
       left = Math.min(
         Math.max(left, VIEWPORT_PAD),
         window.innerWidth - PANEL_WIDTH - VIEWPORT_PAD,
       );
 
-      let top = rect.bottom - panelHeight;
+      // Header trigger: open below. Sidebar-style (lower): open upward.
+      const openBelow = rect.top < window.innerHeight * 0.35;
+      let top = openBelow
+        ? rect.bottom + GAP
+        : rect.bottom - panelHeight;
+
       top = Math.min(
         Math.max(top, VIEWPORT_PAD),
         window.innerHeight - panelHeight - VIEWPORT_PAD,

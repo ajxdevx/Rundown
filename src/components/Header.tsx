@@ -1,18 +1,26 @@
 "use client";
 
-import { Expand, Minimize2, Search } from "lucide-react";
+import { Info, Search } from "lucide-react";
+import { useState } from "react";
+import { useAuth } from "./AuthProvider";
+import InfoPanel from "./InfoPanel";
+import Tooltip from "./Tooltip";
 
 type HeaderProps = {
   onSearchOpen: () => void;
-  isFullscreen: boolean;
-  onToggleFullscreen: () => void;
+  onSignUpOpen: () => void;
 };
 
-export default function Header({
-  onSearchOpen,
-  isFullscreen,
-  onToggleFullscreen,
-}: HeaderProps) {
+export default function Header({ onSearchOpen, onSignUpOpen }: HeaderProps) {
+  const { user, profile, loading, signOut } = useAuth();
+  const [helpOpen, setHelpOpen] = useState(false);
+  const displayName =
+    profile?.username ||
+    (user?.user_metadata?.full_name as string | undefined) ||
+    (user?.user_metadata?.name as string | undefined) ||
+    user?.email ||
+    "Account";
+
   return (
     <header className="flex h-20 shrink-0 items-center gap-5 border-b border-zinc-700/60 px-6">
       <span className="shrink-0 font-[family-name:var(--font-brand)] text-2xl font-bold tracking-tight text-white">
@@ -53,18 +61,46 @@ export default function Header({
         </button>
       </div>
 
-      <button
-        type="button"
-        aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-        onClick={onToggleFullscreen}
-        className="flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-2xl border border-zinc-700/60 text-zinc-400 transition-colors duration-200 hover:bg-zinc-800 hover:text-white"
-      >
-        {isFullscreen ? (
-          <Minimize2 className="size-5" strokeWidth={1.75} />
+      <div className="relative flex shrink-0 items-center gap-2.5">
+        <button
+          id="info-panel-trigger"
+          type="button"
+          aria-label="Help"
+          aria-expanded={helpOpen}
+          onClick={() => setHelpOpen((v) => !v)}
+          className={`group relative flex size-12 cursor-pointer items-center justify-center rounded-2xl transition-colors duration-200 ${
+            helpOpen
+              ? "bg-zinc-800 text-white"
+              : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
+          }`}
+        >
+          <Info className="size-6 shrink-0" strokeWidth={1.75} />
+          <Tooltip label="Help" side="left" />
+        </button>
+
+        {!loading && user ? (
+          <button
+            type="button"
+            aria-label="Sign out"
+            title="Sign out"
+            onClick={() => void signOut()}
+            className="flex h-12 max-w-[220px] shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-white px-4 text-sm font-semibold text-[#050505] transition-opacity duration-200 hover:opacity-90"
+          >
+            <span className="truncate">{displayName}</span>
+          </button>
         ) : (
-          <Expand className="size-5" strokeWidth={1.75} />
+          <button
+            type="button"
+            aria-label="Sign up"
+            onClick={onSignUpOpen}
+            className="flex h-12 shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-white px-4 text-sm font-semibold text-[#050505] transition-opacity duration-200 hover:opacity-90"
+          >
+            Sign up
+          </button>
         )}
-      </button>
+
+        <InfoPanel open={helpOpen} onClose={() => setHelpOpen(false)} />
+      </div>
     </header>
   );
 }

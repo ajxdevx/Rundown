@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowUpRight, Search, X } from "lucide-react";
+import { ArrowUpRight, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   searchSections,
   type SearchItem,
   type SearchSection,
 } from "@/data/search";
+import Popup, { PopupCloseButton } from "./Popup";
 
 type SearchModalProps = {
   open: boolean;
@@ -17,10 +18,20 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("all");
   const [activeId, setActiveId] = useState(searchSections[0]?.items[0]?.id ?? "");
-  const [visible, setVisible] = useState(false);
-  const [closing, setClosing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevOpen = useRef(false);
+
+  useEffect(() => {
+    if (open && !prevOpen.current) {
+      setQuery("");
+      setTab("all");
+      setActiveId(searchSections[0]?.items[0]?.id ?? "");
+      const t = setTimeout(() => inputRef.current?.focus(), 20);
+      prevOpen.current = true;
+      return () => clearTimeout(t);
+    }
+    if (!open) prevOpen.current = false;
+  }, [open]);
 
   const filteredSections = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -59,47 +70,6 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
     )?.label ?? "Result";
 
   useEffect(() => {
-    if (open) {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-        closeTimerRef.current = null;
-      }
-      setClosing(false);
-      setVisible(true);
-      setQuery("");
-      setTab("all");
-      setActiveId(searchSections[0]?.items[0]?.id ?? "");
-      const t = setTimeout(() => inputRef.current?.focus(), 20);
-      return () => clearTimeout(t);
-    }
-
-    if (visible) {
-      setClosing(true);
-      closeTimerRef.current = setTimeout(() => {
-        setVisible(false);
-        setClosing(false);
-        closeTimerRef.current = null;
-      }, 220);
-    }
-
-    return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-        closeTimerRef.current = null;
-      }
-    };
-  }, [open, visible]);
-
-  useEffect(() => {
-    if (!open || closing) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, closing, onClose]);
-
-  useEffect(() => {
     if (!flatItems.length) {
       setActiveId("");
       return;
@@ -114,109 +84,87 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
     0,
   );
 
-  if (!visible) return null;
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center px-4 pt-[10vh]">
-      <button
-        type="button"
-        aria-label="Close search"
-        className={`absolute inset-0 bg-black/65 ${
-          closing ? "animate-search-backdrop-out" : "animate-search-backdrop"
-        }`}
-        onClick={onClose}
-      />
-
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Search"
-        className={`relative z-10 flex h-[min(620px,78vh)] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-zinc-700/50 bg-[#222222] ${
-          closing ? "animate-search-panel-out" : "animate-search-panel"
-        }`}
-      >
-        <div className="shrink-0 px-5 pt-5 pb-4">
-          <div className="flex items-center gap-3 rounded-2xl bg-[#1a1a1a] px-4 py-3">
-            <Search className="size-5 shrink-0 text-zinc-500" strokeWidth={1.75} />
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search tools, discover, trending, collections..."
-              className="min-w-0 flex-1 bg-transparent font-[family-name:var(--font-brand)] text-lg text-white outline-none placeholder:text-zinc-500"
-            />
-            <kbd className="hidden rounded-md bg-[#222222] px-2 py-1 text-[11px] text-zinc-500 sm:inline">
-              Esc
-            </kbd>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex size-8 cursor-pointer items-center justify-center rounded-xl text-zinc-500 transition-colors duration-200 hover:bg-zinc-800 hover:text-white"
-            >
-              <X className="size-4" strokeWidth={1.75} />
-            </button>
-          </div>
-
-          <div className="mt-4 flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <TabButton
-              label="All"
-              count={totalCount}
-              active={tab === "all"}
-              onClick={() => setTab("all")}
-            />
-            {searchSections.map((section) => {
-              const count =
-                filteredSections.find((s) => s.id === section.id)?.items
-                  .length ?? 0;
-              return (
-                <TabButton
-                  key={section.id}
-                  label={section.label}
-                  count={count}
-                  active={tab === section.id}
-                  onClick={() => setTab(section.id)}
-                />
-              );
-            })}
-          </div>
+    <Popup
+      open={open}
+      onClose={onClose}
+      align="top"
+      label="Search"
+      panelClassName="flex h-[min(620px,78vh)] w-full max-w-3xl flex-col bg-[#222222]"
+    >
+      <div className="shrink-0 px-5 pt-5 pb-4">
+        <div className="flex items-center gap-3 rounded-2xl bg-[#1a1a1a] px-4 py-3">
+          <Search className="size-5 shrink-0 text-zinc-500" strokeWidth={1.75} />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search tools, discover, trending, collections..."
+            className="min-w-0 flex-1 bg-transparent font-[family-name:var(--font-brand)] text-lg text-white outline-none placeholder:text-zinc-500"
+          />
+          <kbd className="hidden rounded-md bg-[#222222] px-2 py-1 text-[11px] text-zinc-500 sm:inline">
+            Esc
+          </kbd>
+          <PopupCloseButton onClick={onClose} />
         </div>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 border-t border-zinc-700/40 md:grid-cols-2">
-          <div className="scrollbar-hide min-h-0 overflow-y-auto p-3 md:border-r md:border-zinc-700/40">
-            {visibleSections.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center gap-2 px-4 py-12 text-center">
-                <p className="text-sm font-medium text-zinc-300">No matches</p>
-                <p className="text-xs text-zinc-500">
-                  Try a different keyword
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {visibleSections.map((section) => (
-                  <ResultSection
-                    key={section.id}
-                    section={section}
-                    showTitle={tab === "all" || visibleSections.length > 1}
-                    activeId={activeItem?.id}
-                    onSelect={setActiveId}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="scrollbar-hide hidden min-h-0 overflow-y-auto p-5 md:block">
-            {activeItem ? (
-              <Preview item={activeItem} sectionLabel={activeSectionLabel} />
-            ) : (
-              <div className="flex h-full items-center justify-center text-sm text-zinc-500">
-                Pick something to preview
-              </div>
-            )}
-          </div>
+        <div className="mt-4 flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <TabButton
+            label="All"
+            count={totalCount}
+            active={tab === "all"}
+            onClick={() => setTab("all")}
+          />
+          {searchSections.map((section) => {
+            const count =
+              filteredSections.find((s) => s.id === section.id)?.items.length ??
+              0;
+            return (
+              <TabButton
+                key={section.id}
+                label={section.label}
+                count={count}
+                active={tab === section.id}
+                onClick={() => setTab(section.id)}
+              />
+            );
+          })}
         </div>
       </div>
-    </div>
+
+      <div className="grid min-h-0 flex-1 grid-cols-1 border-t border-zinc-700/40 md:grid-cols-2">
+        <div className="scrollbar-hide min-h-0 overflow-y-auto p-3 md:border-r md:border-zinc-700/40">
+          {visibleSections.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center gap-2 px-4 py-12 text-center">
+              <p className="text-sm font-medium text-zinc-300">No matches</p>
+              <p className="text-xs text-zinc-500">Try a different keyword</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {visibleSections.map((section) => (
+                <ResultSection
+                  key={section.id}
+                  section={section}
+                  showTitle={tab === "all" || visibleSections.length > 1}
+                  activeId={activeItem?.id}
+                  onSelect={setActiveId}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="scrollbar-hide hidden min-h-0 overflow-y-auto p-5 md:block">
+          {activeItem ? (
+            <Preview item={activeItem} sectionLabel={activeSectionLabel} />
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-zinc-500">
+              Pick something to preview
+            </div>
+          )}
+        </div>
+      </div>
+    </Popup>
   );
 }
 
