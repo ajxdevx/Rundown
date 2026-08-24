@@ -1,19 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AuthProvider, useAuth } from "./AuthProvider";
+import { MainContentSkeleton } from "./AppSkeleton";
 import CategoryBar from "./CategoryBar";
 import Header from "./Header";
+import ProfileSetupModal from "./ProfileSetupModal";
 import RightSidebar from "./RightSidebar";
 import SearchModal from "./SearchModal";
 import Sidebar from "./Sidebar";
 import SignUpModal from "./SignUpModal";
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
-  const { user, loading, needsUsername } = useAuth();
+  const { user, authLoading, needsOnboarding, status } = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [signUpOpen, setSignUpOpen] = useState(false);
-  const showRightSidebar = !loading && !!user;
+  const [profileSetupOpen, setProfileSetupOpen] = useState(false);
+  // Keep main skeleton visible briefly so fast auth still shows featured/card skeletons.
+  const [holdMainSkeleton, setHoldMainSkeleton] = useState(true);
+  const loadStartedAtRef = useRef(
+    typeof performance !== "undefined" ? performance.now() : Date.now(),
+  );
+
+  useEffect(() => {
+    if (authLoading) {
+      setHoldMainSkeleton(true);
+      return;
+    }
+
+    const elapsed =
+      (typeof performance !== "undefined" ? performance.now() : Date.now()) -
+      loadStartedAtRef.current;
+    const remaining = Math.max(0, 400 - elapsed);
+    const timer = window.setTimeout(() => setHoldMainSkeleton(false), remaining);
+    return () => window.clearTimeout(timer);
+  }, [authLoading]);
+
+  const showMainSkeleton = authLoading || holdMainSkeleton;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -27,36 +50,53 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (needsUsername) setSignUpOpen(true);
-  }, [needsUsername]);
+    if (authLoading || status === "loading") {
+      return;
+    }
+
+    if (status === "loggedOut" || !user) {
+      setProfileSetupOpen(false);
+      setSignUpOpen(false);
+      return;
+    }
+
+    if (needsOnboarding) {
+      setSignUpOpen(false);
+      setProfileSetupOpen(true);
+      return;
+    }
+
+    setProfileSetupOpen(false);
+  }, [authLoading, status, user, needsOnboarding]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#0a0a0a] text-white">
+      {/* Real — never skeleton */}
       <div className="relative z-40 h-full w-20 shrink-0 overflow-visible">
         <Sidebar />
       </div>
 
       <div className="relative z-0 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <Header
-          onSearchOpen={() => setSearchOpen(true)}
-          onSignUpOpen={() => setSignUpOpen(true)}
-        />
-
+        {/* Real — never skeleton */}
+        <Header onSearchOpen={() => setSearchOpen(true)} />
         <CategoryBar />
 
-        <main className="relative scrollbar-hide min-h-0 flex-1 overflow-y-auto">
-          {children}
+        <main className="relative scrollbar-hide min-h-0 min-w-0 flex-1 overflow-y-auto">
+          {showMainSkeleton ? <MainContentSkeleton /> : children}
         </main>
       </div>
 
-      {showRightSidebar && (
-        <div className="relative z-40 h-full w-20 shrink-0 overflow-visible">
-          <RightSidebar />
-        </div>
-      )}
+      {/* Always mounted w-20 — skeletons inside only */}
+      <div className="relative z-40 h-full w-20 shrink-0 overflow-visible">
+        <RightSidebar onSignUpOpen={() => setSignUpOpen(true)} />
+      </div>
 
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
       <SignUpModal open={signUpOpen} onClose={() => setSignUpOpen(false)} />
+      <ProfileSetupModal
+        open={profileSetupOpen}
+        onClose={() => setProfileSetupOpen(false)}
+      />
     </div>
   );
 }

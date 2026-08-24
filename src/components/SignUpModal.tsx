@@ -2,13 +2,15 @@
 
 import Image from "next/image";
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { FaGoogle } from "react-icons/fa6";
 import { featuredTools, tools, type Tool } from "@/data/tools";
+import { mapAuthError } from "@/lib/authErrors";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "./AuthProvider";
 import Popup from "./Popup";
 
 type AuthMode = "signup" | "login";
-type AuthStep = "credentials" | "username";
+type AuthStep = "email" | "password";
 
 type SignUpModalProps = {
   open: boolean;
@@ -52,8 +54,8 @@ function ToolPreviewCard({ tool }: { tool: Tool }) {
 const inputClassName =
   "h-12 w-full rounded-xl border border-zinc-700/70 bg-[#111111] px-4 text-sm text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-zinc-500 disabled:opacity-60";
 
-function normalizeUsername(value: string) {
-  return value.trim().toLowerCase();
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
 export default function SignUpModal({
@@ -61,168 +63,123 @@ export default function SignUpModal({
   onClose,
   initialMode = "signup",
 }: SignUpModalProps) {
-  const { needsUsername, refreshProfile } = useAuth();
+  const { refreshProfile } = useAuth();
   const [mode, setMode] = useState<AuthMode>(initialMode);
-  const [step, setStep] = useState<AuthStep>("credentials");
+  const [step, setStep] = useState<AuthStep>("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [username, setUsername] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const emailRef = useRef<HTMLInputElement>(null);
-  const usernameRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   const prevOpen = useRef(false);
+  const submittingRef = useRef(false);
+
+  const emailOk = isValidEmail(email);
 
   useEffect(() => {
     if (open && !prevOpen.current) {
-      const startOnUsername = needsUsername;
       setMode(initialMode);
-      setStep(startOnUsername ? "username" : "credentials");
+      setStep("email");
       setEmail("");
       setPassword("");
-      setUsername("");
+      setConfirmPassword("");
       setMessage(null);
       setError(null);
-      const t = setTimeout(() => {
-        if (startOnUsername) usernameRef.current?.focus();
-        else emailRef.current?.focus();
-      }, 20);
+      setLoading(false);
+      submittingRef.current = false;
+      const t = setTimeout(() => emailRef.current?.focus(), 20);
       prevOpen.current = true;
       return () => clearTimeout(t);
     }
     if (!open) prevOpen.current = false;
-  }, [open, initialMode, needsUsername]);
+  }, [open, initialMode]);
 
-  useEffect(() => {
-    if (open && needsUsername && step !== "username") {
-      setStep("username");
-      setError(null);
-      setMessage(null);
-    }
-  }, [open, needsUsername, step]);
-
-  async function handleCredentialsSubmit(e: FormEvent<HTMLFormElement>) {
+  function handleEmailContinue(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
+    setError(null);
+    setMessage(null);
+
+    if (!emailOk) {
+      setError("Enter a valid email address.");
+      return;
+    }
+
+    setPassword("");
+    setConfirmPassword("");
+    setStep("password");
+    setTimeout(() => passwordRef.current?.focus(), 20);
+  }
+
+  async function handlePasswordSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (loading || submittingRef.current) return;
+
     setMessage(null);
     setError(null);
 
-    if (mode === "signup") {
-      const { data, error: authError } = await supabase.auth.signUp({
-        email,
+    if (!isValidEmail(email)) {
+      setError("Enter a valid email address.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    submittingRef.current = true;
+    setLoading(true);
+
+    try {
+      if (mode === "signup") {
+        const { data, error: authError } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+        });
+
+        if (authError) {
+          setError(mapAuthError(authError));
+          return;
+        }
+
+        if (data.user && !data.session) {
+          setMessage(
+            "Account created. Check your email to confirm, then log in.",
+          );
+          return;
+        }
+
+        await refreshProfile();
+        onClose();
+        return;
+      }
+
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
         password,
       });
 
-      setLoading(false);
-
       if (authError) {
-        setError(authError.message);
+        setError(mapAuthError(authError));
         return;
       }
 
-      if (data.user && !data.session) {
-        setMessage("Account created. Check your email to confirm, then log in.");
-        return;
-      }
-
-      setUsername("");
-      setStep("username");
-      setTimeout(() => usernameRef.current?.focus(), 20);
-      return;
-    }
-
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    setLoading(false);
-
-    if (authError) {
-      setError(authError.message);
-      return;
-    }
-
-    const profile = await refreshProfile();
-    if (!profile?.username) {
-      setUsername("");
-      setStep("username");
-      setTimeout(() => usernameRef.current?.focus(), 20);
-      return;
-    }
-
-    onClose();
-  }
-
-  async function handleUsernameSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setMessage(null);
-    setError(null);
-
-    const normalized = normalizeUsername(username);
-    if (!normalized) {
-      setError("Please choose a username.");
-      return;
-    }
-
-    if (!/^[a-z0-9_]{3,20}$/.test(normalized)) {
-      setError("Use 3–20 characters: letters, numbers, or underscores.");
-      return;
-    }
-
-    const {
-      data: { user: currentUser },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !currentUser) {
-      setError(userError?.message ?? "You must be signed in to continue.");
-      return;
-    }
-
-    setLoading(true);
-
-    const { data: taken, error: checkError } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("username", normalized)
-      .neq("id", currentUser.id)
-      .maybeSingle();
-
-    if (checkError) {
+      await refreshProfile();
+      onClose();
+    } catch (err) {
+      setError(mapAuthError(err instanceof Error ? err : "Network error"));
+    } finally {
+      submittingRef.current = false;
       setLoading(false);
-      setError(checkError.message);
-      return;
     }
-
-    if (taken) {
-      setLoading(false);
-      setError("That username is already taken.");
-      return;
-    }
-
-    const { error: saveError } = await supabase.from("profiles").upsert(
-      {
-        id: currentUser.id,
-        username: normalized,
-      },
-      { onConflict: "id" },
-    );
-
-    setLoading(false);
-
-    if (saveError) {
-      if (saveError.code === "23505") {
-        setError("That username is already taken.");
-        return;
-      }
-      setError(saveError.message);
-      return;
-    }
-
-    await refreshProfile();
-    onClose();
   }
 
   const loop = [...showcaseTools, ...showcaseTools];
@@ -234,75 +191,123 @@ export default function SignUpModal({
   ];
 
   const isSignup = mode === "signup";
-  const isUsernameStep = step === "username";
-  const canClose = !needsUsername && !isUsernameStep;
+  const isPasswordStep = step === "password";
+
+  const title = isPasswordStep
+    ? isSignup
+      ? "Create a password"
+      : "Enter your password"
+    : isSignup
+      ? "Create your free account"
+      : "Welcome back";
+
+  const subtitle = isPasswordStep
+    ? isSignup
+      ? "Choose a password, then confirm it to finish signing up."
+      : "Enter and confirm your password to log in."
+    : isSignup
+      ? "Discover and save the best AI tools — curated for builders, creators, and teams."
+      : "Log in to save tools and access your account features.";
 
   return (
     <Popup
       open={open}
-      onClose={() => {
-        if (!canClose) return;
-        onClose();
-      }}
+      onClose={onClose}
       labelledBy="signup-title"
-      showCloseButton={canClose}
+      showCloseButton
       panelClassName="flex h-[min(520px,85vh)] w-full max-w-4xl bg-[#0a0a0a] shadow-[0_40px_120px_rgba(0,0,0,0.75)]"
     >
       <div className="flex w-full flex-col justify-center px-8 py-10 sm:px-12 md:w-[46%]">
         <div className="mx-auto w-full max-w-[340px] text-center">
-          <div className="mx-auto mb-8 flex size-12 items-center justify-center overflow-hidden rounded-xl">
+          <div className="mx-auto mb-1 flex items-center justify-center gap-1.5 leading-none">
             <Image
               src="/logo.png"
-              alt="Rundown"
-              width={48}
-              height={48}
-              className="size-12 object-contain"
+              alt=""
+              width={56}
+              height={56}
+              className="h-14 w-14 shrink-0 object-contain"
               unoptimized
             />
+            <span className="font-[family-name:var(--font-brand)] text-2xl font-bold tracking-tight text-white">
+              Rundown
+            </span>
           </div>
 
           <h2
             id="signup-title"
-            className="mb-3 whitespace-nowrap font-[family-name:var(--font-brand)] text-[1.45rem] leading-tight font-bold tracking-tight text-white sm:text-[1.65rem]"
+            className="mb-1.5 whitespace-nowrap font-[family-name:var(--font-brand)] text-[1.45rem] leading-none font-bold tracking-tight text-white sm:text-[1.65rem]"
           >
-            {isUsernameStep
-              ? "Choose your username"
-              : isSignup
-                ? "Create your free account"
-                : "Welcome back"}
+            {title}
           </h2>
-          <p className="mb-8 text-sm leading-relaxed text-zinc-500">
-            {isUsernameStep
-              ? "Pick a unique username for your Rundown profile."
-              : isSignup
-                ? "Discover and save the best AI tools — curated for builders, creators, and teams."
-                : "Log in to save tools and access your account features."}
-          </p>
+          <p className="mb-6 text-sm leading-relaxed text-zinc-500">{subtitle}</p>
 
-          {isUsernameStep ? (
+          {isPasswordStep ? (
             <form
-              onSubmit={handleUsernameSubmit}
+              onSubmit={handlePasswordSubmit}
               className="flex flex-col gap-3"
             >
               <input
-                ref={usernameRef}
-                type="text"
+                type="email"
+                readOnly
+                tabIndex={-1}
+                value={email.trim()}
+                aria-label="Email address"
+                className={`${inputClassName} cursor-default text-zinc-300`}
+              />
+              <input
+                ref={passwordRef}
+                type="password"
                 required
-                autoComplete="username"
-                value={username}
+                minLength={6}
+                autoComplete={isSignup ? "new-password" : "current-password"}
+                value={password}
                 disabled={loading}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => setPassword(e.target.value)}
                 className={inputClassName}
-                placeholder="Username"
-                maxLength={20}
+                placeholder="Password"
+              />
+              <input
+                type="password"
+                required
+                minLength={6}
+                autoComplete={isSignup ? "new-password" : "current-password"}
+                value={confirmPassword}
+                disabled={loading}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className={inputClassName}
+                placeholder="Confirm password"
               />
 
               <button
                 type="submit"
-                disabled={loading || !normalizeUsername(username)}
+                disabled={
+                  loading || password.length < 6 || confirmPassword.length < 6
+                }
                 className="flex h-12 w-full cursor-pointer items-center justify-center rounded-xl bg-white text-sm font-semibold text-[#050505] transition-opacity duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? "Saving…" : "Continue"}
+                {loading
+                  ? isSignup
+                    ? "Creating account…"
+                    : "Logging in…"
+                  : isSignup
+                    ? "Sign up"
+                    : "Log in"}
+              </button>
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => {
+                  setStep("email");
+                  setPassword("");
+                  setConfirmPassword("");
+                  setError(null);
+                  setMessage(null);
+                  setTimeout(() => emailRef.current?.focus(), 20);
+                }}
+                className="cursor-pointer text-sm font-medium text-zinc-400 transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Use a different email
               </button>
 
               {error && (
@@ -310,11 +315,16 @@ export default function SignUpModal({
                   {error}
                 </p>
               )}
+              {message && (
+                <p className="text-left text-sm text-emerald-400" role="status">
+                  {message}
+                </p>
+              )}
             </form>
           ) : (
             <>
               <form
-                onSubmit={handleCredentialsSubmit}
+                onSubmit={handleEmailContinue}
                 className="flex flex-col gap-3"
               >
                 <input
@@ -324,41 +334,60 @@ export default function SignUpModal({
                   autoComplete="email"
                   value={email}
                   disabled={loading}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setError(null);
+                  }}
                   className={inputClassName}
                   placeholder="Email address"
                 />
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  autoComplete={isSignup ? "new-password" : "current-password"}
-                  value={password}
-                  disabled={loading}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={inputClassName}
-                  placeholder="Password"
-                />
-                <button type="submit" className="sr-only" tabIndex={-1}>
-                  {isSignup ? "Sign up" : "Log in"}
-                </button>
+
+                <div
+                  className={`grid transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                    emailOk
+                      ? "grid-rows-[1fr] opacity-100"
+                      : "pointer-events-none grid-rows-[0fr] opacity-0"
+                  }`}
+                >
+                  <div className="overflow-hidden">
+                    <button
+                      type="submit"
+                      tabIndex={emailOk ? 0 : -1}
+                      className={`flex h-12 w-full cursor-pointer items-center justify-center rounded-xl bg-white text-sm font-semibold text-[#050505] transition-opacity duration-200 hover:opacity-90 ${
+                        emailOk ? "animate-continue-btn" : ""
+                      }`}
+                    >
+                      Continue
+                    </button>
+                  </div>
+                </div>
 
                 {error && (
                   <p className="text-left text-sm text-red-400" role="alert">
                     {error}
                   </p>
                 )}
-                {message && (
-                  <p className="text-left text-sm text-emerald-400" role="status">
-                    {message}
-                  </p>
-                )}
-                {loading && !message && !error && (
-                  <p className="text-left text-sm text-zinc-500" role="status">
-                    {isSignup ? "Creating account…" : "Logging in…"}
-                  </p>
-                )}
               </form>
+
+              <div className="my-5 flex items-center gap-3">
+                <span className="h-px flex-1 bg-zinc-800" />
+                <span className="text-xs font-medium tracking-wide text-zinc-600 uppercase">
+                  or
+                </span>
+                <span className="h-px flex-1 bg-zinc-800" />
+              </div>
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => {
+                  // Placeholder — Google auth wiring comes later.
+                }}
+                className="flex h-12 w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border border-zinc-700/70 bg-[#111111] text-sm font-semibold text-white transition-colors duration-200 hover:border-zinc-500 hover:bg-[#161616] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <FaGoogle className="size-4 shrink-0" />
+                Continue with Google
+              </button>
 
               <p className="mt-5 text-sm text-zinc-500">
                 {isSignup ? "Already have an account?" : "Need an account?"}{" "}
@@ -367,6 +396,9 @@ export default function SignUpModal({
                   disabled={loading}
                   onClick={() => {
                     setMode(isSignup ? "login" : "signup");
+                    setStep("email");
+                    setPassword("");
+                    setConfirmPassword("");
                     setError(null);
                     setMessage(null);
                   }}

@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 export const categories = [
   { id: "all", name: "All", description: "Browse every tool" },
@@ -59,7 +59,10 @@ export const categories = [
 export default function CategoryBar() {
   const [active, setActive] = useState("all");
   const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
+  // Categories always overflow — start true so the right-edge fade is present
+  // on first paint (same before/after auth load; never looks like it bleeds
+  // into the right sidebar).
+  const [canScrollRight, setCanScrollRight] = useState(true);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({
     active: false,
@@ -75,16 +78,24 @@ export default function CategoryBar() {
     setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     updateScrollState();
     const el = scrollerRef.current;
     if (!el) return;
 
     el.addEventListener("scroll", updateScrollState, { passive: true });
     window.addEventListener("resize", updateScrollState);
+
+    const ro =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => updateScrollState())
+        : null;
+    ro?.observe(el);
+
     return () => {
       el.removeEventListener("scroll", updateScrollState);
       window.removeEventListener("resize", updateScrollState);
+      ro?.disconnect();
     };
   }, [updateScrollState]);
 
@@ -135,19 +146,22 @@ export default function CategoryBar() {
   };
 
   return (
-    <div className="relative flex h-14 w-full shrink-0 items-center border-b border-zinc-700/60">
-      {canScrollLeft && (
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 flex items-center bg-gradient-to-r from-[#0a0a0a] via-[#0a0a0a]/90 to-transparent pr-10 pl-2">
-          <button
-            type="button"
-            aria-label="Scroll categories left"
-            onClick={() => scrollByAmount(-220)}
-            className="pointer-events-auto flex size-8 cursor-pointer items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
-          >
-            <ChevronLeft className="size-4" strokeWidth={1.75} />
-          </button>
-        </div>
-      )}
+    <div className="relative flex h-14 w-full min-w-0 shrink-0 items-center overflow-hidden border-b border-zinc-700/60">
+      <div
+        className={`pointer-events-none absolute inset-y-0 left-0 z-10 flex items-center bg-gradient-to-r from-[#0a0a0a] via-[#0a0a0a]/90 to-transparent pr-10 pl-2 transition-opacity duration-150 ${
+          canScrollLeft ? "opacity-100" : "opacity-0"
+        }`}
+      >
+        <button
+          type="button"
+          aria-label="Scroll categories left"
+          tabIndex={canScrollLeft ? 0 : -1}
+          onClick={() => scrollByAmount(-220)}
+          className="pointer-events-auto flex size-8 cursor-pointer items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+        >
+          <ChevronLeft className="size-4" strokeWidth={1.75} />
+        </button>
+      </div>
 
       <div
         ref={scrollerRef}
@@ -156,7 +170,7 @@ export default function CategoryBar() {
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onClickCapture={onClickCapture}
-        className="flex h-full w-full cursor-grab items-center gap-1 overflow-x-auto px-4 active:cursor-grabbing touch-pan-x select-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex h-full w-full min-w-0 cursor-grab items-center gap-1 overflow-x-auto px-4 active:cursor-grabbing touch-pan-x select-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {categories.map((category) => {
           const isActive = active === category.id;
@@ -179,18 +193,22 @@ export default function CategoryBar() {
         })}
       </div>
 
-      {canScrollRight && (
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex items-center bg-gradient-to-l from-[#0a0a0a] via-[#0a0a0a]/90 to-transparent pl-10 pr-2">
-          <button
-            type="button"
-            aria-label="Scroll categories right"
-            onClick={() => scrollByAmount(220)}
-            className="pointer-events-auto flex size-8 cursor-pointer items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
-          >
-            <ChevronRight className="size-4" strokeWidth={1.75} />
-          </button>
-        </div>
-      )}
+      {/* Always mounted — same right edge before/after load; never bleeds into sidebar */}
+      <div
+        className={`pointer-events-none absolute inset-y-0 right-0 z-10 flex items-center bg-gradient-to-l from-[#0a0a0a] via-[#0a0a0a]/90 to-transparent pl-10 pr-2 transition-opacity duration-150 ${
+          canScrollRight ? "opacity-100" : "opacity-0"
+        }`}
+      >
+        <button
+          type="button"
+          aria-label="Scroll categories right"
+          tabIndex={canScrollRight ? 0 : -1}
+          onClick={() => scrollByAmount(220)}
+          className="pointer-events-auto flex size-8 cursor-pointer items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+        >
+          <ChevronRight className="size-4" strokeWidth={1.75} />
+        </button>
+      </div>
     </div>
   );
 }

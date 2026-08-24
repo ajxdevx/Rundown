@@ -7,7 +7,6 @@ import {
   Compass,
   Home,
   Newspaper,
-  Plus,
   Swords,
   TrendingUp,
 } from "lucide-react";
@@ -34,9 +33,9 @@ export default function Sidebar() {
         <Image
           src="/logo.png"
           alt="Rundown"
-          width={96}
-          height={96}
-          className="h-24 w-24 max-w-none scale-110 object-contain"
+          width={80}
+          height={80}
+          className="h-20 w-20 max-w-none object-contain"
           priority
           unoptimized
         />
@@ -62,15 +61,6 @@ export default function Sidebar() {
             />
           );
         })}
-      </div>
-
-      <div className="flex flex-col items-center pb-6">
-        <SidebarIconButton
-          icon={Plus}
-          label="Submit a tool"
-          variant="create"
-          tooltipSide="right"
-        />
       </div>
     </aside>
   );
