@@ -1,4 +1,4 @@
-const STORAGE_KEY = "rundown:recent-tools";
+const STORAGE_KEY = "rondex:recent-tools";
 const MAX_RECENT = 20;
 
 export type RecentToolRef = {

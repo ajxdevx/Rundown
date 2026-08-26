@@ -117,7 +117,7 @@ export default function InfoPanel({ open, onClose }: InfoPanelProps) {
     <div
       ref={panelRef}
       role="dialog"
-      aria-label="About Rundown"
+      aria-label="About Rondex"
       style={
         pos
           ? { top: pos.top, left: pos.left, maxHeight: pos.maxHeight }
@@ -145,7 +145,7 @@ export default function InfoPanel({ open, onClose }: InfoPanelProps) {
             unoptimized
           />
           <h2 className="mt-4 font-[family-name:var(--font-brand)] text-3xl font-bold tracking-tight text-white">
-            Rundown
+            Rondex
           </h2>
           <p className="mt-3 max-w-[260px] text-[15px] leading-relaxed text-zinc-400">
             The best AI tools for builders & creators, curated in one place.
@@ -204,7 +204,7 @@ export default function InfoPanel({ open, onClose }: InfoPanelProps) {
 
       <div className="flex h-14 shrink-0 items-center justify-center bg-[#1a1a1a]">
         <p className="m-0 text-center text-sm leading-none text-zinc-500">
-          © {new Date().getFullYear()} Rundown. All rights reserved.
+          © {new Date().getFullYear()} Rondex. All rights reserved.
         </p>
       </div>
     </div>,

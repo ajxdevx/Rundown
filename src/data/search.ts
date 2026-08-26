@@ -42,7 +42,7 @@ export const searchSections: SearchSection[] = [
     items: [
       item("discover-1", "Fresh finds", "New tools added this week", "#14b8a6"),
       item("discover-2", "Hidden gems", "Underrated AI apps worth trying", "#f59e0b"),
-      item("discover-3", "Editor picks", "Hand-picked by the Rundown team", "#ec4899"),
+      item("discover-3", "Editor picks", "Hand-picked by the Rondex team", "#ec4899"),
     ],
   },
   {

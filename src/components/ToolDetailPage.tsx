@@ -541,7 +541,7 @@ export default function ToolDetailPage({
 
             <p className="mt-3 text-xs text-zinc-500 sm:text-sm">
               Some outbound links may earn us a commission, which helps keep
-              Rundown running.{" "}
+              Rondex running.{" "}
               <span className="font-medium text-zinc-400 underline decoration-zinc-600 underline-offset-2">
                 Learn more
               </span>

@@ -440,7 +440,7 @@ export default function ProfileSetupModal({
     submittingRef.current = true;
     setLoading(true);
 
-    // Optimistic: enter Rundown immediately; persist in background.
+    // Optimistic: enter Rondex immediately; persist in background.
     applyOptimisticProfile(optimisticProfile);
     applyOptimisticSetupComplete(true);
     onClose();
@@ -535,7 +535,7 @@ export default function ProfileSetupModal({
           Complete your profile
         </h2>
         <p className="mb-6 text-center text-sm leading-relaxed text-zinc-500">
-          Personalize your Rundown profile.
+          Personalize your Rondex profile.
         </p>
 
         <form
@@ -620,7 +620,7 @@ export default function ProfileSetupModal({
 
             <div className="grid gap-3.5 sm:grid-cols-2">
               <div>
-                <label htmlFor="rundown-handle" className={labelClassName}>
+                <label htmlFor="rondex-handle" className={labelClassName}>
                   Username <span className="text-red-400">*</span>
                 </label>
                 <div className="relative">
@@ -629,8 +629,8 @@ export default function ProfileSetupModal({
                   </span>
                   <input
                     ref={usernameInputRef}
-                    id="rundown-handle"
-                    name="rundown-handle"
+                    id="rondex-handle"
+                    name="rondex-handle"
                     type="text"
                     required
                     readOnly={usernameAutofillLock}

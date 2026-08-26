@@ -21,10 +21,10 @@ const brandFont = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "Rundown",
-    template: "%s · Rundown",
+    default: "Rondex",
+    template: "%s · Rondex",
   },
-  description: "Discover and compare AI tools on Rundown.",
+  description: "Discover and compare AI tools on Rondex.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

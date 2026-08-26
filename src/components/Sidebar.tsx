@@ -28,11 +28,11 @@ export default function Sidebar() {
       <Link
         href="/"
         className="flex h-20 w-full shrink-0 items-center justify-center"
-        aria-label="Rundown home"
+        aria-label="Rondex home"
       >
         <Image
           src="/logo.png"
-          alt="Rundown"
+          alt="Rondex"
           width={80}
           height={80}
           className="h-20 w-20 max-w-none object-contain"

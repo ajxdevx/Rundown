@@ -22,7 +22,7 @@ export async function generateMetadata({
   const description =
     tool.description?.trim() ||
     tool.fullDescription?.trim() ||
-    `${tool.name} on Rundown`;
+    `${tool.name} on Rondex`;
 
   const title = `${tool.name} - ${description}`;
 

@@ -33,7 +33,7 @@ function mapReview(row: {
 
 export function requestSignIn() {
   if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent("rundown:open-signup"));
+    window.dispatchEvent(new CustomEvent("rondex:open-signup"));
   }
 }
 

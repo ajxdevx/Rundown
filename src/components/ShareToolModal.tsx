@@ -73,7 +73,7 @@ export default function ShareToolModal({
   const shareDescription =
     tool.description?.trim() ||
     tool.fullDescription?.trim() ||
-    `${tool.name} on Rundown`;
+    `${tool.name} on Rondex`;
   const shareTitle = `${tool.name} - ${shareDescription}`;
   const shareText = shareTitle;
 
@@ -198,7 +198,7 @@ export default function ShareToolModal({
           </div>
         </div>
         <div className="px-4 py-3">
-          <p className="text-xs font-medium text-zinc-500">Rundown</p>
+          <p className="text-xs font-medium text-zinc-500">Rondex</p>
           <p className="mt-1 line-clamp-3 text-sm font-semibold text-white sm:text-[15px]">
             {shareTitle}
           </p>

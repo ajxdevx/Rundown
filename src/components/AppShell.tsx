@@ -53,9 +53,9 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const onOpenSignup = () => setSignUpOpen(true);
-    window.addEventListener("rundown:open-signup", onOpenSignup);
+    window.addEventListener("rondex:open-signup", onOpenSignup);
     return () =>
-      window.removeEventListener("rundown:open-signup", onOpenSignup);
+      window.removeEventListener("rondex:open-signup", onOpenSignup);
   }, []);
 
   useEffect(() => {

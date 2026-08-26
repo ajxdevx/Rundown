@@ -227,7 +227,7 @@ export default function SignUpModal({
               unoptimized
             />
             <span className="font-[family-name:var(--font-brand)] text-2xl font-bold tracking-tight text-white">
-              Rundown
+              Rondex
             </span>
           </div>
 

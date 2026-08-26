@@ -64,7 +64,7 @@ export const featuredNews: NewsItem[] = [
   ),
   makeItem(
     "featured-3",
-    "Rundown Weekly: top tools shipping now",
+    "Rondex Weekly: top tools shipping now",
     "A curated roundup of the strongest launches from the last seven days.",
     "Roundup",
     "Mar 19, 2026",
