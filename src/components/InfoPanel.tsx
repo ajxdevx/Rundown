@@ -130,7 +130,7 @@ export default function InfoPanel({ open, onClose }: InfoPanelProps) {
           type="button"
           aria-label="Close"
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 flex size-9 cursor-pointer items-center justify-center rounded-full bg-black/35 text-zinc-400 transition-colors duration-200 hover:bg-zinc-800 hover:text-white"
+          className="absolute top-4 right-4 z-10 flex size-9 cursor-pointer items-center justify-center rounded-full bg-black/35 text-zinc-400 hover-soft"
         >
           <X className="size-4" strokeWidth={1.75} />
         </button>
@@ -159,18 +159,18 @@ export default function InfoPanel({ open, onClose }: InfoPanelProps) {
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className={`group flex items-center gap-3.5 px-4 py-3.5 transition-colors duration-200 hover:bg-zinc-800/80 ${
+              className={`group flex items-center gap-3.5 px-4 py-3.5 hover-soft ${
                 i < socials.length - 1 ? "border-b border-zinc-800" : ""
               }`}
             >
               <span className="flex size-9 items-center justify-center rounded-xl bg-[#222222] text-zinc-300">
                 <Icon className="size-4" />
               </span>
-              <span className="flex-1 text-left text-[15px] font-medium text-zinc-200 transition-colors duration-200 group-hover:text-white">
+              <span className="flex-1 text-left text-[15px] font-medium text-zinc-200">
                 {label}
               </span>
               <ArrowUpRight
-                className="size-4 text-zinc-600 transition-colors duration-200 group-hover:text-zinc-300"
+                className="size-4 text-zinc-600"
                 strokeWidth={1.75}
               />
             </a>
@@ -182,7 +182,7 @@ export default function InfoPanel({ open, onClose }: InfoPanelProps) {
             <button
               key={label}
               type="button"
-              className="cursor-pointer rounded-xl bg-[#1a1a1a] px-2 py-3 text-center text-sm font-medium text-zinc-300 transition-colors duration-200 hover:bg-zinc-800 hover:text-white"
+              className="cursor-pointer rounded-xl bg-[#1a1a1a] px-2 py-3 text-center text-sm font-medium text-zinc-300 hover-soft"
             >
               {label}
             </button>
@@ -194,7 +194,7 @@ export default function InfoPanel({ open, onClose }: InfoPanelProps) {
             <button
               key={label}
               type="button"
-              className="cursor-pointer text-sm text-zinc-500 transition-colors duration-200 hover:text-white"
+              className="cursor-pointer rounded-lg px-2 py-1 text-sm hover-soft-muted"
             >
               {label}
             </button>

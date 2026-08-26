@@ -2,20 +2,63 @@ import type { Tool } from "@/data/tools";
 
 type ToolCardProps = {
   tool: Tool;
+  onSelect?: (tool: Tool) => void;
 };
 
-export default function ToolCard({ tool }: ToolCardProps) {
+function ToolMark({ tool, size }: { tool: Tool; size: "sm" | "lg" }) {
+  if (tool.logoUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- remote logo URLs from Supabase
+      <img
+        src={tool.logoUrl}
+        alt=""
+        className={
+          size === "lg"
+            ? "max-h-[45%] max-w-[45%] object-contain"
+            : "size-6 object-contain"
+        }
+      />
+    );
+  }
+
   return (
-    <article className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-zinc-700/60 bg-[#141414] transition-colors hover:border-zinc-600">
+    <span
+      className={
+        size === "lg"
+          ? "text-5xl font-bold text-white/25 select-none"
+          : "text-sm font-bold text-white"
+      }
+    >
+      {tool.initial}
+    </span>
+  );
+}
+
+export default function ToolCard({ tool, onSelect }: ToolCardProps) {
+  return (
+    <article
+      role={onSelect ? "button" : undefined}
+      tabIndex={onSelect ? 0 : undefined}
+      onClick={onSelect ? () => onSelect(tool) : undefined}
+      onKeyDown={
+        onSelect
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect(tool);
+              }
+            }
+          : undefined
+      }
+      className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-zinc-700/60 bg-[#141414] hover-soft"
+    >
       <div
         className="relative aspect-[16/10] w-full"
         style={{ backgroundColor: tool.color }}
       >
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-5xl font-bold text-white/25 select-none">
-            {tool.initial}
-          </span>
+          <ToolMark tool={tool} size="lg" />
         </div>
       </div>
 
@@ -24,7 +67,7 @@ export default function ToolCard({ tool }: ToolCardProps) {
           className="flex size-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
           style={{ backgroundColor: tool.color }}
         >
-          {tool.initial}
+          <ToolMark tool={tool} size="sm" />
         </div>
         <div className="min-w-0">
           <h3 className="truncate text-[15px] font-semibold text-white">

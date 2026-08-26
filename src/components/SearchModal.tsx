@@ -1,12 +1,14 @@
 "use client";
 
 import { ArrowUpRight, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  searchSections,
+  searchSections as staticSections,
   type SearchItem,
   type SearchSection,
 } from "@/data/search";
+import { searchActiveTools } from "@/data/tools";
 import Popup, { PopupCloseButton } from "./Popup";
 
 type SearchModalProps = {
@@ -15,9 +17,11 @@ type SearchModalProps = {
 };
 
 export default function SearchModal({ open, onClose }: SearchModalProps) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("all");
-  const [activeId, setActiveId] = useState(searchSections[0]?.items[0]?.id ?? "");
+  const [toolItems, setToolItems] = useState<SearchItem[]>([]);
+  const [activeId, setActiveId] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const prevOpen = useRef(false);
 
@@ -25,7 +29,6 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
     if (open && !prevOpen.current) {
       setQuery("");
       setTab("all");
-      setActiveId(searchSections[0]?.items[0]?.id ?? "");
       const t = setTimeout(() => inputRef.current?.focus(), 20);
       prevOpen.current = true;
       return () => clearTimeout(t);
@@ -33,23 +36,60 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
     if (!open) prevOpen.current = false;
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+    const handle = window.setTimeout(() => {
+      void searchActiveTools(query).then((result) => {
+        if (cancelled) return;
+        setToolItems(
+          result.tools.map((tool) => ({
+            id: `tool-${tool.id}`,
+            title: tool.name,
+            subtitle: tool.description,
+            color: tool.color,
+            initial: tool.initial,
+            href: `/tools/${tool.slug}`,
+          })),
+        );
+      });
+    }, query.trim() ? 200 : 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(handle);
+    };
+  }, [open, query]);
+
+  const searchSections = useMemo<SearchSection[]>(
+    () =>
+      staticSections.map((section) =>
+        section.id === "tools" ? { ...section, items: toolItems } : section,
+      ),
+    [toolItems],
+  );
+
   const filteredSections = useMemo(() => {
     const q = query.trim().toLowerCase();
 
     return searchSections
       .map((section) => ({
         ...section,
-        items: q
-          ? section.items.filter(
-              (item) =>
-                item.title.toLowerCase().includes(q) ||
-                item.subtitle.toLowerCase().includes(q) ||
-                section.label.toLowerCase().includes(q),
-            )
-          : section.items,
+        items:
+          section.id === "tools"
+            ? section.items
+            : q
+              ? section.items.filter(
+                  (item) =>
+                    item.title.toLowerCase().includes(q) ||
+                    item.subtitle.toLowerCase().includes(q) ||
+                    section.label.toLowerCase().includes(q),
+                )
+              : section.items,
       }))
       .filter((section) => section.items.length > 0);
-  }, [query]);
+  }, [query, searchSections]);
 
   const visibleSections = useMemo(() => {
     if (tab === "all") return filteredSections;
@@ -83,6 +123,12 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
     (sum, section) => sum + section.items.length,
     0,
   );
+
+  const openItem = (item: SearchItem) => {
+    if (!item.href) return;
+    onClose();
+    router.push(item.href);
+  };
 
   return (
     <Popup
@@ -148,6 +194,7 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
                   showTitle={tab === "all" || visibleSections.length > 1}
                   activeId={activeItem?.id}
                   onSelect={setActiveId}
+                  onOpen={openItem}
                 />
               ))}
             </div>
@@ -156,7 +203,11 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
 
         <div className="scrollbar-hide hidden min-h-0 overflow-y-auto p-5 md:block">
           {activeItem ? (
-            <Preview item={activeItem} sectionLabel={activeSectionLabel} />
+            <Preview
+              item={activeItem}
+              sectionLabel={activeSectionLabel}
+              onOpen={() => openItem(activeItem)}
+            />
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-zinc-500">
               Pick something to preview
@@ -183,7 +234,7 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`cursor-pointer rounded-lg px-3 py-1.5 text-sm whitespace-nowrap transition-colors duration-200 hover:bg-zinc-800 hover:text-white ${
+      className={`cursor-pointer rounded-lg px-3 py-1.5 text-sm whitespace-nowrap hover-soft ${
         active ? "bg-zinc-800 font-medium text-white" : "text-zinc-400"
       }`}
     >
@@ -198,11 +249,13 @@ function ResultSection({
   showTitle,
   activeId,
   onSelect,
+  onOpen,
 }: {
   section: SearchSection;
   showTitle: boolean;
   activeId?: string;
   onSelect: (id: string) => void;
+  onOpen: (item: SearchItem) => void;
 }) {
   return (
     <div>
@@ -220,8 +273,11 @@ function ResultSection({
               type="button"
               onMouseEnter={() => onSelect(item.id)}
               onFocus={() => onSelect(item.id)}
-              onClick={() => onSelect(item.id)}
-              className={`group flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors duration-200 hover:bg-zinc-800 hover:text-white ${
+              onClick={() => {
+                onSelect(item.id);
+                if (item.href) onOpen(item);
+              }}
+              className={`group flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-left hover-soft ${
                 active ? "bg-zinc-800 text-white" : "text-zinc-400"
               }`}
             >
@@ -256,9 +312,11 @@ function ResultSection({
 function Preview({
   item,
   sectionLabel,
+  onOpen,
 }: {
   item: SearchItem;
   sectionLabel: string;
+  onOpen: () => void;
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -283,7 +341,9 @@ function Preview({
 
       <button
         type="button"
-        className="mt-auto flex h-11 w-full cursor-pointer items-center justify-between rounded-2xl bg-white px-3 text-sm font-semibold text-black transition-colors duration-200 hover:bg-zinc-200"
+        onClick={onOpen}
+        disabled={!item.href}
+        className="mt-auto flex h-11 w-full cursor-pointer items-center justify-between rounded-2xl bg-white px-3 text-sm font-semibold text-black hover-primary disabled:cursor-default disabled:opacity-50"
       >
         <span>Open {sectionLabel.toLowerCase()}</span>
         <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-black text-white">

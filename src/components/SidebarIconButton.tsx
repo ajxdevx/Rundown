@@ -2,6 +2,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
+import { hoverPrimary, hoverSoftMuted } from "@/lib/hover";
 import Tooltip from "./Tooltip";
 
 type SidebarIconButtonProps = {
@@ -23,12 +24,12 @@ export default function SidebarIconButton({
 }: SidebarIconButtonProps) {
   const isCreate = variant === "create";
 
-  const className = `group relative flex size-12 cursor-pointer items-center justify-center rounded-2xl transition-colors duration-200 ${
+  const className = `group relative flex size-12 cursor-pointer items-center justify-center rounded-2xl ${
     isCreate
-      ? "bg-white text-black hover:bg-zinc-200"
+      ? `bg-white text-black ${hoverPrimary}`
       : active
         ? "bg-zinc-800 text-white"
-        : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
+        : hoverSoftMuted
   }`;
 
   const content = (

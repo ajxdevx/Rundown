@@ -127,7 +127,7 @@ export default function AccountMenu({
         <button
           type="button"
           role="menuitem"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-zinc-200 transition-colors duration-200 hover:bg-zinc-800 hover:text-white"
+          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-zinc-200 hover-soft"
         >
           <User className="size-4 shrink-0 text-zinc-400" strokeWidth={1.75} />
           Profile
@@ -135,7 +135,7 @@ export default function AccountMenu({
         <button
           type="button"
           role="menuitem"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-zinc-200 transition-colors duration-200 hover:bg-zinc-800 hover:text-white"
+          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-zinc-200 hover-soft"
         >
           <Settings
             className="size-4 shrink-0 text-zinc-400"
@@ -156,7 +156,7 @@ export default function AccountMenu({
               setSigningOut(false);
             }
           }}
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-400 transition-colors duration-200 hover:bg-zinc-800 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-400 hover-soft hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <LogOut className="size-4 shrink-0" strokeWidth={1.75} />
           {signingOut ? "Logging out…" : "Log out"}

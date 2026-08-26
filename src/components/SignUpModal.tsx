@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { FaGoogle } from "react-icons/fa6";
-import { featuredTools, tools, type Tool } from "@/data/tools";
+import { showcaseTools, type Tool } from "@/data/tools";
 import { mapAuthError } from "@/lib/authErrors";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "./AuthProvider";
@@ -17,8 +17,6 @@ type SignUpModalProps = {
   onClose: () => void;
   initialMode?: AuthMode;
 };
-
-const showcaseTools = [...featuredTools, ...tools].slice(0, 10);
 
 function ToolPreviewCard({ tool }: { tool: Tool }) {
   return (
@@ -305,7 +303,7 @@ export default function SignUpModal({
                   setMessage(null);
                   setTimeout(() => emailRef.current?.focus(), 20);
                 }}
-                className="cursor-pointer text-sm font-medium text-zinc-400 transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="cursor-pointer rounded-lg px-2 py-1 text-sm font-medium hover-soft-muted disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Use a different email
               </button>
@@ -383,7 +381,7 @@ export default function SignUpModal({
                 onClick={() => {
                   // Placeholder — Google auth wiring comes later.
                 }}
-                className="flex h-12 w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border border-zinc-700/70 bg-[#111111] text-sm font-semibold text-white transition-colors duration-200 hover:border-zinc-500 hover:bg-[#161616] disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-12 w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border border-zinc-700/70 bg-[#111111] text-sm font-semibold text-white hover-soft disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <FaGoogle className="size-4 shrink-0" />
                 Continue with Google

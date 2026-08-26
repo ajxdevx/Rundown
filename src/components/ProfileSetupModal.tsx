@@ -553,7 +553,7 @@ export default function ProfileSetupModal({
                 e.stopPropagation();
                 fileInputRef.current?.click();
               }}
-              className="relative flex size-24 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-zinc-600 bg-transparent transition-[border-color] duration-200 hover:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-60"
+              className="relative flex size-24 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-zinc-600 bg-transparent hover-soft disabled:cursor-not-allowed disabled:opacity-60"
             >
               {avatarPreview ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -577,7 +577,7 @@ export default function ProfileSetupModal({
                 e.stopPropagation();
                 fileInputRef.current?.click();
               }}
-              className="cursor-pointer text-sm font-medium text-zinc-300 transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              className="cursor-pointer rounded-lg px-2 py-1 text-sm font-medium hover-soft-muted disabled:cursor-not-allowed disabled:opacity-60"
             >
               Add photo
             </button>

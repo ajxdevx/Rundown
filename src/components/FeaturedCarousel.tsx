@@ -1,16 +1,29 @@
 "use client";
 
 import { ArrowUpRight } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { featuredTools } from "@/data/tools";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Tool } from "@/data/tools";
 
 const PER_VIEW = 4;
 const INTERVAL_MS = 8000;
-const PAGES = Math.ceil(featuredTools.length / PER_VIEW);
 
-export default function FeaturedCarousel() {
+type FeaturedCarouselProps = {
+  tools: Tool[];
+  onSelect?: (tool: Tool) => void;
+};
+
+export default function FeaturedCarousel({
+  tools,
+  onSelect,
+}: FeaturedCarouselProps) {
+  const pages = Math.max(1, Math.ceil(tools.length / PER_VIEW));
   const [page, setPage] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const safePage = useMemo(
+    () => Math.min(page, pages - 1),
+    [page, pages],
+  );
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -21,15 +34,20 @@ export default function FeaturedCarousel() {
 
   const startTimer = useCallback(() => {
     clearTimer();
+    if (pages <= 1) return;
     timerRef.current = setInterval(() => {
-      setPage((p) => (p + 1) % PAGES);
+      setPage((p) => (p + 1) % pages);
     }, INTERVAL_MS);
-  }, [clearTimer]);
+  }, [clearTimer, pages]);
 
   useEffect(() => {
     startTimer();
     return clearTimer;
   }, [startTimer, clearTimer]);
+
+  useEffect(() => {
+    setPage((p) => Math.min(p, pages - 1));
+  }, [pages]);
 
   const goToPage = (index: number) => {
     setPage(index);
@@ -46,28 +64,38 @@ export default function FeaturedCarousel() {
         <div
           className="flex ease-in-out"
           style={{
-            transform: `translateX(-${page * 100}%)`,
+            transform: `translateX(-${safePage * 100}%)`,
             transition: "transform 1.2s ease-in-out",
           }}
         >
-          {Array.from({ length: PAGES }, (_, pageIndex) => (
+          {Array.from({ length: pages }, (_, pageIndex) => (
             <div
               key={pageIndex}
               className="grid w-full shrink-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
             >
-              {featuredTools
+              {tools
                 .slice(pageIndex * PER_VIEW, pageIndex * PER_VIEW + PER_VIEW)
                 .map((tool) => (
                   <button
                     key={tool.id}
                     type="button"
-                    className="flex cursor-pointer items-center gap-3 rounded-2xl bg-[#0f0f0f] p-3 text-left transition-colors duration-200 hover:bg-zinc-800"
+                    onClick={() => onSelect?.(tool)}
+                    className="flex cursor-pointer items-center gap-3 rounded-2xl bg-[#0f0f0f] p-3 text-left hover-soft"
                   >
                     <div
                       className="flex size-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
                       style={{ backgroundColor: tool.color }}
                     >
-                      {tool.initial}
+                      {tool.logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={tool.logoUrl}
+                          alt=""
+                          className="size-7 object-contain"
+                        />
+                      ) : (
+                        tool.initial
+                      )}
                     </div>
 
                     <div className="min-w-0 flex-1">
@@ -90,14 +118,14 @@ export default function FeaturedCarousel() {
       </div>
 
       <div className="mt-4 flex items-center justify-center gap-2">
-        {Array.from({ length: PAGES }, (_, i) => (
+        {Array.from({ length: pages }, (_, i) => (
           <button
             key={i}
             type="button"
             aria-label={`Go to featured page ${i + 1}`}
             onClick={() => goToPage(i)}
             className={`h-1.5 cursor-pointer rounded-full transition-all duration-300 ${
-              page === i
+              safePage === i
                 ? "w-6 bg-white"
                 : "w-1.5 bg-zinc-600 hover:bg-zinc-400"
             }`}

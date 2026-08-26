@@ -151,3 +151,38 @@ body {
   background: #27272a;
   animation: auth-skeleton-pulse 1.4s ease-in-out infinite;
 }
+
+/**
+ * Shared hover — same feel as sidebar icon buttons.
+ * Background + text only. Never changes border-color.
+ */
+.hover-soft {
+  transition-property: color, background-color;
+  transition-duration: 200ms;
+  transition-timing-function: ease;
+}
+
+.hover-soft:hover:not(:disabled) {
+  background-color: #27272a; /* zinc-800 */
+  color: #ffffff;
+}
+
+.hover-soft-muted {
+  color: #a1a1aa; /* zinc-400 */
+}
+
+.hover-soft-muted:hover:not(:disabled) {
+  background-color: #27272a;
+  color: #ffffff;
+}
+
+.hover-primary {
+  transition-property: color, background-color;
+  transition-duration: 200ms;
+  transition-timing-function: ease;
+}
+
+.hover-primary:hover:not(:disabled) {
+  background-color: #e4e4e7; /* zinc-200 */
+}
+

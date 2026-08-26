@@ -4,6 +4,7 @@ export type SearchItem = {
   subtitle: string;
   color: string;
   initial: string;
+  href?: string;
 };
 
 export type SearchSection = {
@@ -17,6 +18,7 @@ function item(
   title: string,
   subtitle: string,
   color: string,
+  href?: string,
 ): SearchItem {
   return {
     id,
@@ -24,6 +26,7 @@ function item(
     subtitle,
     color,
     initial: title.charAt(0).toUpperCase(),
+    href,
   };
 }
 
@@ -31,14 +34,7 @@ export const searchSections: SearchSection[] = [
   {
     id: "tools",
     label: "Tools",
-    items: [
-      item("tool-1", "Cluely", "Undetectable AI for meetings", "#3b82f6"),
-      item("tool-2", "Raycast", "Productivity launcher with AI", "#ef4444"),
-      item("tool-3", "Perplexity", "AI search with cited answers", "#06b6d4"),
-      item("tool-4", "Cursor", "AI pair programming IDE", "#8b5cf6"),
-      item("tool-5", "Midjourney", "Image generation from text", "#a855f7"),
-      item("tool-6", "ElevenLabs", "Natural voice generation", "#10b981"),
-    ],
+    items: [],
   },
   {
     id: "discover",

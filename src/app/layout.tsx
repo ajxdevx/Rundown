@@ -20,8 +20,11 @@ const brandFont = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Rundown",
-  description: "Rundown",
+  title: {
+    default: "Rundown",
+    template: "%s · Rundown",
+  },
+  description: "Discover and compare AI tools on Rundown.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

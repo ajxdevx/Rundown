@@ -19,9 +19,9 @@ import Tooltip from "./Tooltip";
 
 const midItems = [
   { icon: Bell, label: "Notifications" },
-  { icon: Bookmark, label: "Saved" },
-  { icon: History, label: "History" },
-  { icon: LayoutGrid, label: "Collections" },
+  { icon: Bookmark, label: "Saved", href: "/saved" },
+  { icon: History, label: "History", href: "/history" },
+  { icon: LayoutGrid, label: "Collections", href: "/collections" },
   { icon: Mail, label: "Newsletter" },
 ] as const;
 
@@ -81,12 +81,12 @@ export default function RightSidebar({ onSignUpOpen }: RightSidebarProps) {
             aria-expanded={user ? accountOpen : undefined}
             aria-haspopup={user ? "menu" : undefined}
             onClick={onAccountClick}
-            className={`group relative flex size-12 cursor-pointer items-center justify-center overflow-hidden rounded-2xl transition-colors duration-200 ${
+            className={`group relative flex size-12 cursor-pointer items-center justify-center overflow-hidden rounded-2xl ${
               accountOpen
                 ? "bg-zinc-800 text-white"
                 : showAvatar
-                  ? "hover:bg-zinc-800"
-                  : "bg-zinc-800/80 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                  ? "hover-soft"
+                  : "bg-zinc-800/80 text-zinc-300 hover-soft"
             }`}
           >
             {showAvatar ? (
@@ -135,11 +135,12 @@ export default function RightSidebar({ onSignUpOpen }: RightSidebarProps) {
             ))
           : (
             <>
-              {midItems.map(({ icon, label }) => (
+              {midItems.map((item) => (
                 <SidebarIconButton
-                  key={label}
-                  icon={icon}
-                  label={label}
+                  key={item.label}
+                  icon={item.icon}
+                  label={item.label}
+                  href={"href" in item ? item.href : undefined}
                   tooltipSide="left"
                 />
               ))}
@@ -149,10 +150,10 @@ export default function RightSidebar({ onSignUpOpen }: RightSidebarProps) {
                 aria-label="Help"
                 aria-expanded={helpOpen}
                 onClick={() => setHelpOpen((v) => !v)}
-                className={`group relative flex size-12 cursor-pointer items-center justify-center rounded-2xl transition-colors duration-200 ${
+                className={`group relative flex size-12 cursor-pointer items-center justify-center rounded-2xl ${
                   helpOpen
                     ? "bg-zinc-800 text-white"
-                    : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                    : "hover-soft-muted"
                 }`}
               >
                 <Info className="size-6 shrink-0" strokeWidth={1.75} />

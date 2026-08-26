@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { AuthProvider, useAuth } from "./AuthProvider";
 import { MainContentSkeleton } from "./AppSkeleton";
 import CategoryBar from "./CategoryBar";
@@ -12,11 +13,12 @@ import Sidebar from "./Sidebar";
 import SignUpModal from "./SignUpModal";
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isToolPage = pathname.startsWith("/tools/");
   const { user, authLoading, needsOnboarding, status } = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [signUpOpen, setSignUpOpen] = useState(false);
   const [profileSetupOpen, setProfileSetupOpen] = useState(false);
-  // Keep main skeleton visible briefly so fast auth still shows featured/card skeletons.
   const [holdMainSkeleton, setHoldMainSkeleton] = useState(true);
   const loadStartedAtRef = useRef(
     typeof performance !== "undefined" ? performance.now() : Date.now(),
@@ -36,7 +38,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [authLoading]);
 
-  const showMainSkeleton = authLoading || holdMainSkeleton;
+  const showMainSkeleton = !isToolPage && (authLoading || holdMainSkeleton);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -47,6 +49,13 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const onOpenSignup = () => setSignUpOpen(true);
+    window.addEventListener("rundown:open-signup", onOpenSignup);
+    return () =>
+      window.removeEventListener("rundown:open-signup", onOpenSignup);
   }, []);
 
   useEffect(() => {
@@ -71,22 +80,19 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#0a0a0a] text-white">
-      {/* Real — never skeleton */}
       <div className="relative z-40 h-full w-20 shrink-0 overflow-visible">
         <Sidebar />
       </div>
 
       <div className="relative z-0 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        {/* Real — never skeleton */}
         <Header onSearchOpen={() => setSearchOpen(true)} />
-        <CategoryBar />
+        {!isToolPage ? <CategoryBar /> : null}
 
         <main className="relative scrollbar-hide min-h-0 min-w-0 flex-1 overflow-y-auto">
           {showMainSkeleton ? <MainContentSkeleton /> : children}
         </main>
       </div>
 
-      {/* Always mounted w-20 — skeletons inside only */}
       <div className="relative z-40 h-full w-20 shrink-0 overflow-visible">
         <RightSidebar onSignUpOpen={() => setSignUpOpen(true)} />
       </div>

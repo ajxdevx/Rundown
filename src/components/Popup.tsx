@@ -21,7 +21,7 @@ export function PopupCloseButton({
       type="button"
       aria-label="Close"
       onClick={onClick}
-      className={`flex size-8 cursor-pointer items-center justify-center rounded-xl text-zinc-500 transition-colors duration-200 hover:bg-zinc-800 hover:text-white ${className}`}
+      className={`flex size-8 cursor-pointer items-center justify-center rounded-xl text-zinc-500 hover-soft ${className}`}
     >
       <X className="size-4" strokeWidth={1.75} />
     </button>

@@ -22,7 +22,7 @@ export default function SubmitToolBar() {
 
       <button
         type="button"
-        className="h-11 shrink-0 cursor-pointer rounded-xl bg-white px-5 text-sm font-semibold text-black transition-colors hover:bg-zinc-200"
+        className="h-11 shrink-0 cursor-pointer rounded-xl bg-white px-5 text-sm font-semibold text-black hover-primary"
       >
         Submit your tool
       </button>

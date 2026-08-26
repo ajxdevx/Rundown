@@ -215,10 +215,10 @@ export default function Dropdown({
                           onChange(item.value);
                           setOpen(false);
                         }}
-                        className={`flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm transition-colors duration-200 ${
+                        className={`flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm hover-soft ${
                           isSelected
                             ? "bg-zinc-800 text-white"
-                            : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                            : "text-zinc-400"
                         }`}
                       >
                         <span className="min-w-0 truncate">{item.label}</span>

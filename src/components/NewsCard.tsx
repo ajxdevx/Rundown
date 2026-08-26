@@ -7,7 +7,7 @@ type NewsCardProps = {
 
 export default function NewsCard({ item, large = false }: NewsCardProps) {
   return (
-    <article className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-zinc-700/60 bg-[#141414] transition-colors hover:border-zinc-600">
+    <article className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-zinc-700/60 bg-[#141414] hover-soft">
       <div
         className={`relative w-full ${large ? "aspect-[16/9]" : "aspect-[16/10]"}`}
         style={{ backgroundColor: item.color }}

@@ -1,10 +1,10 @@
 "use client";
 
-import { featuredTools, tools } from "@/data/tools";
 import SubmitToolBar from "./SubmitToolBar";
 
 const FEATURED_PER_VIEW = 4;
-const FEATURED_PAGES = Math.ceil(featuredTools.length / FEATURED_PER_VIEW);
+const FEATURED_PAGES = 2;
+const TOOL_CARD_SKELETONS = 8;
 
 /** Invisible text reserves real line-height; skeleton bar fills the same box. */
 function TextSkeleton({
@@ -97,7 +97,7 @@ export function MainContentSkeleton() {
 
       <section>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {Array.from({ length: tools.length }, (_, i) => (
+          {Array.from({ length: TOOL_CARD_SKELETONS }, (_, i) => (
             <ToolCardSkeleton key={i} />
           ))}
         </div>
