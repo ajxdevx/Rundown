@@ -1,5 +1,7 @@
-import HomeContent from "@/components/HomeContent";
+"use client";
+
+import FreelancerDashboard from "@/components/FreelancerDashboard";
 
 export default function Home() {
-  return <HomeContent />;
+  return <FreelancerDashboard />;
 }

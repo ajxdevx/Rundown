@@ -21,7 +21,7 @@ export function PopupCloseButton({
       type="button"
       aria-label="Close"
       onClick={onClick}
-      className={`flex size-8 cursor-pointer items-center justify-center rounded-xl text-zinc-500 hover-soft ${className}`}
+      className={`flex size-8 cursor-pointer items-center justify-center rounded-xl text-muted hover-soft ${className}`}
     >
       <X className="size-4" strokeWidth={1.75} />
     </button>
@@ -66,7 +66,7 @@ export default function Popup({
       <button
         type="button"
         aria-label="Close"
-        className={`absolute inset-0 bg-black/65 ${
+        className={`absolute inset-0 bg-ink/40 ${
           closing ? "animate-popup-backdrop-out" : "animate-popup-backdrop"
         }`}
         onClick={onClose}
@@ -77,7 +77,7 @@ export default function Popup({
         aria-modal="true"
         aria-labelledby={labelledBy}
         aria-label={label}
-        className={`relative z-10 overflow-hidden rounded-3xl border border-zinc-700/50 ${
+        className={`relative z-10 overflow-hidden rounded-[16px] border border-border shadow-[var(--shadow-popover)] ${
           closing ? "animate-popup-panel-out" : "animate-popup-panel"
         } ${panelClassName}`}
       >

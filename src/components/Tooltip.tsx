@@ -15,10 +15,10 @@ export default function Tooltip({ label, side = "right" }: TooltipProps) {
       }`}
     >
       <span
-        className={`relative block w-max whitespace-nowrap rounded-lg bg-[#242424] px-3 py-1.5 text-[13px] font-semibold tracking-tight text-zinc-100 ${
+        className={`relative block w-max whitespace-nowrap rounded-lg bg-ink px-3 py-1.5 text-[13px] font-semibold tracking-tight text-card ${
           isRight
-            ? "before:absolute before:top-1/2 before:-left-1 before:size-2 before:-translate-y-1/2 before:rotate-45 before:bg-[#242424]"
-            : "before:absolute before:top-1/2 before:-right-1 before:size-2 before:-translate-y-1/2 before:rotate-45 before:bg-[#242424]"
+            ? "before:absolute before:top-1/2 before:-left-1 before:size-2 before:-translate-y-1/2 before:rotate-45 before:bg-ink"
+            : "before:absolute before:top-1/2 before:-right-1 before:size-2 before:-translate-y-1/2 before:rotate-45 before:bg-ink"
         }`}
       >
         {label}

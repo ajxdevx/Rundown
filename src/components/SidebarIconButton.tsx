@@ -12,6 +12,7 @@ type SidebarIconButtonProps = {
   tooltipSide?: "left" | "right";
   variant?: "default" | "create";
   href?: string;
+  onClick?: () => void;
 };
 
 export default function SidebarIconButton({
@@ -21,14 +22,15 @@ export default function SidebarIconButton({
   tooltipSide = "right",
   variant = "default",
   href,
+  onClick,
 }: SidebarIconButtonProps) {
   const isCreate = variant === "create";
 
   const className = `group relative flex size-12 cursor-pointer items-center justify-center rounded-2xl ${
     isCreate
-      ? `bg-white text-black ${hoverPrimary}`
+      ? `btn-accent ${hoverPrimary}`
       : active
-        ? "bg-zinc-800 text-white"
+        ? "bg-ink text-card"
         : hoverSoftMuted
   }`;
 
@@ -48,7 +50,12 @@ export default function SidebarIconButton({
   }
 
   return (
-    <button type="button" aria-label={label} className={className}>
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className={className}
+    >
       {content}
     </button>
   );

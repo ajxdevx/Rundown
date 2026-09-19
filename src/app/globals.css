@@ -1,15 +1,74 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  /* Base */
+  --background: #f7f7f4;
+  --foreground: #111111;
+  --card: #ffffff;
+  --ink: #111111;
+  --muted: #6b6b68;
+  --muted-soft: #969692;
+  --border: #e5e5e0;
+  --border-strong: #d8d8d2;
+  --surface: #eeeeea;
+  --surface-strong: #e5e5e0;
+  /* Soft hover wash — between white and --surface */
+  --surface-hover: #f0f0ec;
+
+  /* Accent */
+  --accent: #c8ff3d;
+  --accent-hover: #b5eb2f;
+  --accent-soft: #f1ffd0;
+
+  /* Semantic (muted) */
+  --success: #2f8f5b;
+  --success-soft: #e8f5ee;
+  --warning: #b7791f;
+  --warning-soft: #f8f0e0;
+  --danger: #c94a4a;
+  --danger-soft: #f8eaea;
+  --info: #4a73a8;
+  --info-soft: #eaf0f7;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  /* Elevation */
+  --shadow-elevated: 0 8px 28px rgba(17, 17, 17, 0.1);
+  --shadow-popover: 0 12px 40px rgba(17, 17, 17, 0.12);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-dm-sans);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-muted-soft: var(--muted-soft);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-surface-hover: var(--surface-hover);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --font-sans: var(--font-manrope);
   --font-mono: var(--font-geist-mono);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
 }
 
 html,
@@ -18,7 +77,20 @@ body {
   overflow: hidden;
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-dm-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+html {
+  --font-brand: var(--font-manrope);
+}
+
+/* Focus — visible, not glowing */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 .scrollbar-hide {
@@ -51,7 +123,7 @@ body {
 @keyframes search-panel-in {
   from {
     opacity: 0;
-    transform: translateY(-12px) scale(0.97);
+    transform: translateY(-10px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -66,28 +138,28 @@ body {
   }
   to {
     opacity: 0;
-    transform: translateY(-12px) scale(0.97);
+    transform: translateY(-10px) scale(0.98);
   }
 }
 
 .animate-popup-backdrop,
 .animate-search-backdrop {
-  animation: search-backdrop-in 200ms ease-out forwards;
+  animation: search-backdrop-in 180ms ease-out forwards;
 }
 
 .animate-popup-backdrop-out,
 .animate-search-backdrop-out {
-  animation: search-backdrop-out 200ms ease-in forwards;
+  animation: search-backdrop-out 160ms ease-in forwards;
 }
 
 .animate-popup-panel,
 .animate-search-panel {
-  animation: search-panel-in 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: search-panel-in 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-popup-panel-out,
 .animate-search-panel-out {
-  animation: search-panel-out 220ms ease-in forwards;
+  animation: search-panel-out 180ms ease-in forwards;
 }
 
 @keyframes continue-btn-in {
@@ -105,38 +177,6 @@ body {
   animation: continue-btn-in 380ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-@keyframes signup-tools-scroll {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(-50%);
-  }
-}
-
-@keyframes signup-tools-scroll-down {
-  from {
-    transform: translateY(-50%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-
-.signup-tools-marquee {
-  animation: signup-tools-scroll 32s linear infinite;
-  will-change: transform;
-}
-
-.signup-tools-marquee-down {
-  animation: signup-tools-scroll-down 36s linear infinite;
-  will-change: transform;
-}
-
-.signup-tool-card {
-  transition: box-shadow 300ms ease;
-}
-
 @keyframes auth-skeleton-pulse {
   0%,
   100% {
@@ -148,41 +188,254 @@ body {
 }
 
 .auth-skeleton {
-  background: #27272a;
+  background: var(--surface-strong);
   animation: auth-skeleton-pulse 1.4s ease-in-out infinite;
 }
 
-/**
- * Shared hover — same feel as sidebar icon buttons.
- * Background + text only. Never changes border-color.
- */
-.hover-soft {
-  transition-property: color, background-color;
-  transition-duration: 200ms;
-  transition-timing-function: ease;
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.hover-soft:hover:not(:disabled) {
-  background-color: #27272a; /* zinc-800 */
-  color: #ffffff;
+.animate-toast-in {
+  animation: toast-in 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.hover-soft-muted {
-  color: #a1a1aa; /* zinc-400 */
+@media (prefers-reduced-motion: reduce) {
+  .auth-skeleton,
+  .animate-toast-in,
+  .animate-popup-backdrop,
+  .animate-popup-backdrop-out,
+  .animate-popup-panel,
+  .animate-popup-panel-out,
+  .animate-search-backdrop,
+  .animate-search-backdrop-out,
+  .animate-search-panel,
+  .animate-search-panel-out,
+  .animate-continue-btn {
+    animation: none !important;
+  }
+
+  .hover-soft,
+  .btn-accent,
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost,
+  .card-surface-interactive {
+    transition: none !important;
+  }
 }
 
-.hover-soft-muted:hover:not(:disabled) {
-  background-color: #27272a;
-  color: #ffffff;
-}
+@layer components {
+  .hover-soft {
+    transition-property: color, background-color;
+    transition-duration: 160ms;
+    transition-timing-function: ease;
+  }
 
-.hover-primary {
-  transition-property: color, background-color;
-  transition-duration: 200ms;
-  transition-timing-function: ease;
-}
+  .hover-soft:hover:not(:disabled) {
+    background-color: var(--surface-hover);
+    color: var(--ink);
+  }
 
-.hover-primary:hover:not(:disabled) {
-  background-color: #e4e4e7; /* zinc-200 */
-}
+  .hover-soft-muted {
+    color: var(--muted);
+  }
 
+  .hover-soft-muted:hover:not(:disabled) {
+    background-color: var(--surface-hover);
+    color: var(--ink);
+  }
+
+  .hover-primary {
+    transition-property: color, background-color;
+    transition-duration: 160ms;
+    transition-timing-function: ease;
+  }
+
+  .hover-primary:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+  }
+
+  /** Brand CTA — Electric Lime (use sparingly) */
+  .btn-accent {
+    background-color: var(--accent);
+    color: var(--ink);
+    border-radius: var(--radius-sm);
+    transition: background-color 160ms ease;
+  }
+
+  .btn-accent:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+  }
+
+  .btn-accent:active:not(:disabled) {
+    transform: translateY(0.5px);
+  }
+
+  .btn-accent:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  /** Primary app CTA — Deep Ink */
+  .btn-primary {
+    background-color: var(--ink);
+    color: var(--card);
+    border-radius: var(--radius-sm);
+    transition: background-color 160ms ease, opacity 160ms ease;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background-color: #2a2a2a;
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    background-color: var(--card);
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    transition: background-color 160ms ease;
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background-color: var(--surface-hover);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border-radius: var(--radius-sm);
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    background-color: var(--surface-hover);
+    color: var(--ink);
+  }
+
+  .btn-danger {
+    background-color: var(--danger);
+    color: #fff;
+    border-radius: var(--radius-sm);
+    transition: opacity 160ms ease;
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    opacity: 0.92;
+  }
+
+  .input-field {
+    height: 44px;
+    width: 100%;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--card);
+    padding: 0 14px;
+    font-size: 14px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 160ms ease;
+  }
+
+  .input-field::placeholder {
+    color: var(--muted-soft);
+  }
+
+  .input-field:focus {
+    border-color: var(--ink);
+  }
+
+  .input-field[aria-invalid="true"] {
+    border-color: var(--danger);
+  }
+
+  .page-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    line-height: 1.25;
+  }
+
+  @media (min-width: 640px) {
+    .page-title {
+      font-size: 1.875rem;
+    }
+  }
+
+  .section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+
+  .card-surface {
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background-color: var(--card);
+  }
+
+  /** Clickable / hoverable cards */
+  .card-surface-interactive {
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background-color: var(--card);
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease;
+  }
+
+  .card-surface-interactive:hover {
+    background-color: var(--surface-hover);
+    border-color: var(--border);
+  }
+
+  /* Nested controls own the hover — card wash turns off while over them */
+  .card-surface-interactive:has(button:hover),
+  .card-surface-interactive:has(a:hover),
+  .card-surface-interactive:has([role="menuitem"]:hover),
+  .card-surface-interactive:has([data-hover-stop]:hover) {
+    background-color: var(--card);
+    border-color: var(--border);
+  }
+
+  .card-surface-interactive:active:not(:has(button:hover)):not(:has(a:hover)) {
+    background-color: var(--surface);
+  }
+
+  /**
+   * Rows/lists with parent hover + inner actions.
+   * Apply to any clickable row that contains icon buttons.
+   * While hovering a nested button/link, parent wash turns off.
+   */
+  .hover-row {
+    --hover-row-rest: transparent;
+    transition: background-color 160ms ease;
+  }
+
+  .hover-row-card {
+    --hover-row-rest: var(--card);
+  }
+
+  .hover-row:hover {
+    background-color: var(--surface-hover);
+  }
+
+  /* Only nested controls marked data-hover-stop clear the parent wash */
+  .hover-row:has([data-hover-stop]:hover) {
+    background-color: var(--hover-row-rest);
+  }
+}

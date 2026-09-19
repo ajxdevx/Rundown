@@ -192,7 +192,7 @@ export default function Dropdown({
                 ? { top: pos.top, left: pos.left, width: pos.width }
                 : { top: 0, left: 0, visibility: "hidden" }
             }
-            className="fixed z-[120] overflow-hidden rounded-xl border border-zinc-700/70 bg-[#161616] shadow-[0_16px_40px_rgba(0,0,0,0.55)]"
+            className="fixed z-[120] overflow-hidden rounded-xl border border-border bg-card shadow-[0_16px_40px_rgba(0,0,0,0.55)]"
           >
             <div className="relative">
               <ul
@@ -217,14 +217,14 @@ export default function Dropdown({
                         }}
                         className={`flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm hover-soft ${
                           isSelected
-                            ? "bg-zinc-800 text-white"
-                            : "text-zinc-400"
+                            ? "bg-surface text-ink"
+                            : "text-muted"
                         }`}
                       >
                         <span className="min-w-0 truncate">{item.label}</span>
                         {isSelected && (
                           <Check
-                            className="size-4 shrink-0 text-white"
+                            className="size-4 shrink-0 text-ink"
                             strokeWidth={2}
                           />
                         )}
@@ -240,7 +240,7 @@ export default function Dropdown({
                   className="pointer-events-none absolute top-1.5 right-1.5 bottom-1.5 w-1.5"
                 >
                   <div
-                    className="pointer-events-auto absolute right-0 w-1.5 cursor-grab rounded-full bg-zinc-600 active:cursor-grabbing"
+                    className="pointer-events-auto absolute right-0 w-1.5 cursor-grab rounded-full bg-muted active:cursor-grabbing"
                     style={{
                       height: scrollMetrics.thumbHeight,
                       transform: `translateY(${scrollMetrics.thumbTop}px)`,
@@ -269,15 +269,15 @@ export default function Dropdown({
         onClick={() => {
           if (!disabled) setOpen((v) => !v);
         }}
-        className={`flex h-12 w-full cursor-pointer items-center justify-between gap-3 rounded-xl border border-zinc-700/70 bg-[#111111] px-4 text-left text-sm outline-none transition-colors duration-200 focus:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-60 ${
-          open ? "border-zinc-500" : ""
-        } ${selected ? "text-white" : "text-zinc-600"}`}
+        className={`flex h-12 w-full cursor-pointer items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 text-left text-sm outline-none transition-colors duration-200 focus:border-ink disabled:cursor-not-allowed disabled:opacity-60 ${
+          open ? "border-ink" : ""
+        } ${selected ? "text-ink" : "text-muted"}`}
       >
         <span className="min-w-0 truncate">
           {selected?.label ?? placeholder}
         </span>
         <ChevronDown
-          className={`size-4 shrink-0 text-zinc-500 transition-transform duration-200 ${
+          className={`size-4 shrink-0 text-muted transition-transform duration-200 ${
             open ? "rotate-180" : ""
           }`}
           strokeWidth={1.75}
