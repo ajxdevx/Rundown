@@ -2,6 +2,7 @@ import {
   type Client,
   type ClientStatus,
 } from "@/data/clientsMock";
+import { SEED_CLIENTS } from "@/data/seedWorkspace";
 import {
   DEFAULT_WORKSPACE_ID,
   getActiveWorkspaceId,
@@ -107,7 +108,16 @@ export function getAllClients(): Client[] {
     .filter((c) => !deleted.has(c.id))
     .map((c) => applyOverride(c, overrides[c.id]))
     .filter((c) => (c.workspaceId ?? DEFAULT_WORKSPACE_ID) === ws);
-  return created;
+
+  const createdIds = new Set(created.map((c) => c.id));
+  const seeds = SEED_CLIENTS.filter(
+    (c) =>
+      !deleted.has(c.id) &&
+      !createdIds.has(c.id) &&
+      (c.workspaceId ?? DEFAULT_WORKSPACE_ID) === ws,
+  ).map((c) => applyOverride(c, overrides[c.id]));
+
+  return [...seeds, ...created];
 }
 
 export function getClientById(id: string): Client | null {
@@ -247,6 +257,8 @@ export function deleteClientLocal(id: string) {
     delete overrides[id];
     writeOverrides(overrides);
   }
-  writeDeleted(readDeleted().filter((deletedId) => deletedId !== id));
+  const deleted = new Set(readDeleted());
+  deleted.add(id);
+  writeDeleted([...deleted]);
   notify();
 }

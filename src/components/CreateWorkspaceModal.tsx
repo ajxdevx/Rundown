@@ -70,7 +70,7 @@ export default function CreateWorkspaceModal({
     setSubmitting(true);
     dirtyRef.current = false;
     onClose();
-    router.push("/");
+    router.push("/dashboard");
 
     void backgroundSync().then((r) => {
       if (!r.ok) {

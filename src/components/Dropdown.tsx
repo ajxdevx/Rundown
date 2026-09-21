@@ -215,10 +215,10 @@ export default function Dropdown({
                           onChange(item.value);
                           setOpen(false);
                         }}
-                        className={`flex w-full cursor-pointer items-center justify-between gap-3 rounded-[8px] px-3 py-2 text-left text-sm hover-soft ${
+                        className={`flex w-full cursor-pointer items-center justify-between gap-3 rounded-[8px] px-3 py-2 text-left text-sm ${
                           isSelected
-                            ? "bg-surface text-ink"
-                            : "text-muted"
+                            ? "bg-accent text-ink"
+                            : "text-muted hover-soft"
                         }`}
                       >
                         <span className="min-w-0 truncate">{item.label}</span>

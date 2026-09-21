@@ -53,7 +53,7 @@ export default function OnboardingPage() {
       return;
     }
     if (session.onboardingComplete) {
-      router.replace("/");
+      router.replace("/dashboard");
       return;
     }
     setName(session.onboarding.name || session.name);
@@ -96,7 +96,7 @@ export default function OnboardingPage() {
   const finish = (createProject: boolean) => {
     completeOnboarding();
     if (createProject) router.push("/projects/new");
-    else router.push("/");
+    else router.push("/dashboard");
   };
 
   if (step === 4) {

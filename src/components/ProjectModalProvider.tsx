@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { CreatedProject } from "@/lib/createProject";
 import ProjectFormModal, {
   type ProjectFormEditValues,
 } from "./ProjectFormModal";
@@ -15,6 +16,8 @@ import ProjectFormModal, {
 type CreateOptions = {
   clientId?: string;
   restoreDraft?: boolean;
+  skipNavigate?: boolean;
+  onSuccess?: (project: CreatedProject) => void;
 };
 
 type EditOptions = {
@@ -49,6 +52,10 @@ export function ProjectModalProvider({ children }: { children: ReactNode }) {
   const [editOpen, setEditOpen] = useState(false);
   const [clientId, setClientId] = useState<string | undefined>();
   const [restoreDraft, setRestoreDraft] = useState(false);
+  const [skipNavigate, setSkipNavigate] = useState(false);
+  const [createSuccess, setCreateSuccess] = useState<
+    ((project: CreatedProject) => void) | null
+  >(null);
   const [editInitial, setEditInitial] = useState<ProjectFormEditValues | null>(
     null,
   );
@@ -61,6 +68,8 @@ export function ProjectModalProvider({ children }: { children: ReactNode }) {
     setEditOpen(false);
     setClientId(undefined);
     setRestoreDraft(false);
+    setSkipNavigate(false);
+    setCreateSuccess(null);
     setEditInitial(null);
     setEditSuccess(null);
   }, []);
@@ -68,13 +77,17 @@ export function ProjectModalProvider({ children }: { children: ReactNode }) {
   const openCreate = useCallback((options?: CreateOptions) => {
     setEditOpen(false);
     setEditInitial(null);
+    setEditSuccess(null);
     setClientId(options?.clientId);
     setRestoreDraft(Boolean(options?.restoreDraft));
+    setSkipNavigate(Boolean(options?.skipNavigate));
+    setCreateSuccess(() => options?.onSuccess ?? null);
     setCreateOpen(true);
   }, []);
 
   const openEdit = useCallback((options: EditOptions) => {
     setCreateOpen(false);
+    setCreateSuccess(null);
     setEditInitial(options.initial);
     setEditSuccess(() => options.onSuccess ?? null);
     setEditOpen(true);
@@ -94,6 +107,11 @@ export function ProjectModalProvider({ children }: { children: ReactNode }) {
         mode="create"
         preselectedClientId={clientId}
         restoreDraft={restoreDraft}
+        skipNavigate={skipNavigate}
+        onSuccess={(result) => {
+          if (!("slug" in result)) return;
+          createSuccess?.(result);
+        }}
       />
       <ProjectFormModal
         open={editOpen}

@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import {
-  Check,
   ChevronDown,
   Eye,
   Lock,
@@ -48,6 +47,7 @@ import {
 import Popup, { PopupCloseButton } from "./Popup";
 import { useToast } from "./ToastProvider";
 import { Avatar } from "./ui/Avatar";
+import { AppCheckbox } from "./ui/AppCheckbox";
 import { Button } from "./ui/Button";
 
 const DRAFT_KEY = "dueso:create-project-draft";
@@ -1065,15 +1065,9 @@ export default function ProjectFormModal({
                           onClick={() =>
                             updateTask(task.key, { done: !task.done })
                           }
-                          className={`flex size-[18px] shrink-0 cursor-pointer items-center justify-center rounded-[4px] border outline-none ${
-                            task.done
-                              ? "border-ink bg-ink text-card"
-                              : "border-border"
-                          }`}
+                          className="shrink-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ink/20"
                         >
-                          {task.done ? (
-                            <Check className="size-2.5" strokeWidth={3} />
-                          ) : null}
+                          <AppCheckbox checked={task.done} size="sm" />
                         </button>
                         <input
                           type="text"

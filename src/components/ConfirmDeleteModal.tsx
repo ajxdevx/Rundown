@@ -36,7 +36,7 @@ export default function ConfirmDeleteModal({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-10 cursor-pointer items-center justify-center rounded-[8px] border border-border px-4 text-sm font-medium text-ink hover-soft"
+            className="inline-flex h-10 cursor-pointer items-center justify-center rounded-[8px] btn-secondary px-4 text-sm font-semibold"
           >
             Cancel
           </button>

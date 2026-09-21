@@ -89,9 +89,9 @@ function paymentLabel(status: string) {
     case "due":
     case "pending":
     case "partial":
-      return "Due";
+      return "Unpaid";
     case "overdue":
-      return "Overdue";
+      return "Past due";
     case "processing":
       return "Processing";
     case "failed":
@@ -290,7 +290,7 @@ export default function ClientDetailPage({ id }: ClientDetailPageProps) {
             <button
               type="button"
               onClick={load}
-              className="inline-flex h-10 cursor-pointer items-center rounded-[8px] btn-primary px-4 text-sm font-semibold"
+              className="inline-flex h-10 cursor-pointer items-center rounded-[8px] btn-secondary px-4 text-sm font-semibold"
             >
               Retry
             </button>
@@ -356,7 +356,7 @@ export default function ClientDetailPage({ id }: ClientDetailPageProps) {
                   onUpdated: (updated) => setClient(updated),
                 })
               }
-              className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-[8px] border border-border px-4 text-sm font-medium text-ink hover-soft"
+              className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-[8px] btn-secondary px-4 text-sm font-semibold"
             >
               <Pencil className="size-4" strokeWidth={1.75} />
               Edit Client
@@ -368,7 +368,7 @@ export default function ClientDetailPage({ id }: ClientDetailPageProps) {
                 aria-expanded={menuOpen}
                 onClick={() => setMenuOpen((v) => !v)}
                 className={`flex size-10 cursor-pointer items-center justify-center rounded-[8px] text-muted ${
-                  menuOpen ? "bg-surface text-ink" : "hover-soft"
+                  menuOpen ? "bg-surface text-ink" : "hover-bg"
                 }`}
               >
                 <MoreHorizontal className="size-5" strokeWidth={1.75} />
@@ -551,7 +551,7 @@ export default function ClientDetailPage({ id }: ClientDetailPageProps) {
                                 href={`/projects/${project.slug}`}
                                 data-hover-stop
                                 onClick={(e) => e.stopPropagation()}
-                                className="inline-flex h-9 cursor-pointer items-center rounded-[8px] btn-primary px-3.5 text-sm font-medium"
+                                className="inline-flex h-9 cursor-pointer items-center rounded-[8px] btn-accent px-3.5 text-sm font-medium"
                               >
                                 Open
                               </Link>

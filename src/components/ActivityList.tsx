@@ -1,6 +1,7 @@
 "use client";
 
 import { Activity as ActivityLucide, Search } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { ActivityEvent } from "@/data/activityMock";
 import ActivityRow from "./ActivityRow";
 import EmptyState from "./EmptyState";
@@ -19,6 +20,7 @@ type ActivityListProps = {
     href?: string;
     onClick?: () => void;
   };
+  emptyIcon?: LucideIcon;
   showGroups?: boolean;
   limit?: number;
   hasMore?: boolean;
@@ -33,6 +35,7 @@ export default function ActivityList({
   emptyTitle = "No activity yet",
   emptyDescription = "Activity from your projects and clients will appear here as your workspace gets moving.",
   emptyAction,
+  emptyIcon: EmptyIcon = ActivityLucide,
   showGroups = true,
   limit,
   hasMore = false,
@@ -48,18 +51,19 @@ export default function ActivityList({
     if (bare) {
       return (
         <EmptyState
-          icon={ActivityLucide}
+          icon={EmptyIcon}
           title={emptyTitle}
           description={emptyDescription}
           action={emptyAction}
           compact
+          className="flex-1"
         />
       );
     }
     return (
       <div className={shell}>
         <EmptyState
-          icon={ActivityLucide}
+          icon={EmptyIcon}
           title={emptyTitle}
           description={emptyDescription}
           action={emptyAction}

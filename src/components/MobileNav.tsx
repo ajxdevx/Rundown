@@ -18,7 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import { mockSignOut } from "@/lib/mockAuth";
 
 const TABS = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/clients", label: "Clients", icon: Users },
 ] as const;
@@ -30,7 +30,7 @@ export default function MobileNav() {
   const moreRef = useRef<HTMLDivElement>(null);
 
   const isActive = (href: string) => {
-    if (href === "/") return pathname === "/";
+    if (href === "/dashboard") return pathname === "/dashboard";
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
@@ -67,7 +67,7 @@ export default function MobileNav() {
               key={tab.href}
               href={tab.href}
               className={`flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
-                active ? "text-ink" : "text-muted"
+                active ? "text-ink" : "text-muted hover:bg-bg-hover"
               }`}
             >
               <tab.icon
@@ -84,7 +84,7 @@ export default function MobileNav() {
             type="button"
             onClick={() => setMoreOpen((v) => !v)}
             className={`flex w-full cursor-pointer flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
-              moreOpen || moreActive ? "text-ink" : "text-muted"
+              moreOpen || moreActive ? "text-ink" : "text-muted hover:bg-bg-hover"
             }`}
           >
             <MoreHorizontal className="size-5" strokeWidth={1.75} />

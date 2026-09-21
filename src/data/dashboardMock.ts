@@ -1,5 +1,10 @@
+import {
+  seedDashboardPayments,
+  seedNeedsAttention,
+} from "@/data/seedWorkspace";
+
 /** True when the workspace has no projects yet (empty-state dashboard). */
-export const isNewAccount = true;
+export const isNewAccount = false;
 
 export type PaymentStatus =
   | "paid"
@@ -27,7 +32,7 @@ export type ActiveProject = {
   currentTask: string;
   /** ISO date for sorting */
   deadlineAt: string;
-  /** Display label e.g. "Due in 5 days" */
+  /** Display label e.g. "In 5 days" */
   deadlineLabel: string;
   value: number;
   paid: number;
@@ -68,7 +73,14 @@ export type DashboardActivityItem = {
   description: string;
   related: string;
   time: string;
-  category: "portal" | "file" | "message" | "payment" | "task" | "project" | "client";
+  category:
+    | "portal"
+    | "file"
+    | "message"
+    | "payment"
+    | "task"
+    | "project"
+    | "client";
   href: string;
 };
 
@@ -84,22 +96,22 @@ export type DashboardStats = {
 };
 
 export const dashboardStats: DashboardStats = {
-  activeProjects: 0,
-  dueThisWeek: 0,
-  totalClients: 0,
-  activeClientsThisMonth: 0,
-  outstanding: 0,
-  outstandingInvoices: 0,
-  collected: 0,
+  activeProjects: 3,
+  dueThisWeek: 3,
+  totalClients: 3,
+  activeClientsThisMonth: 3,
+  outstanding: 4350,
+  outstandingInvoices: 3,
+  collected: 2200,
   collectedPeriod: "This month",
 };
 
+/** @deprecated Prefer live created projects. */
 export const activeProjects: ActiveProject[] = [];
 
-export const recentPayments: RecentPayment[] = [];
+export const recentPayments: RecentPayment[] = seedDashboardPayments;
 
-/** Action-required items only — not portal views or payment duplicates. */
-export const needsAttention: NeedsAttentionItem[] = [];
+export const needsAttention: NeedsAttentionItem[] = seedNeedsAttention;
 
 /** @deprecated Prefer needsAttention — kept for any legacy imports */
 export const clientFollowUps = needsAttention.map((item) => ({

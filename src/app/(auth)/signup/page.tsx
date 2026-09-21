@@ -13,6 +13,7 @@ import {
   authInputClass,
   authInputError,
 } from "@/components/auth/AuthUI";
+import { AppCheckbox } from "@/components/ui/AppCheckbox";
 import { mockSignUp } from "@/lib/mockAuth";
 
 export default function SignUpPage() {
@@ -107,12 +108,15 @@ export default function SignUpPage() {
 
         <div>
           <label className="flex cursor-pointer items-start gap-3">
-            <input
-              type="checkbox"
-              checked={terms}
-              onChange={(e) => setTerms(e.target.checked)}
-              className="mt-1 size-4 rounded border-border accent-ink"
-            />
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={terms}
+              onClick={() => setTerms((v) => !v)}
+              className="mt-0.5 shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ink/20"
+            >
+              <AppCheckbox checked={terms} size="sm" />
+            </button>
             <span className="text-sm text-muted">
               I agree to the{" "}
               <button

@@ -13,9 +13,12 @@ type EmptyStateProps = {
     href?: string;
     onClick?: () => void;
     icon?: LucideIcon;
+    /** main = lime, secondary = outlined */
+    variant?: "main" | "secondary";
   };
   secondary?: ReactNode;
   compact?: boolean;
+  className?: string;
 };
 
 export default function EmptyState({
@@ -25,30 +28,50 @@ export default function EmptyState({
   action,
   secondary,
   compact = false,
+  className = "",
 }: EmptyStateProps) {
   const ActionIcon = action?.icon;
 
-  const buttonClass =
-    "inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl btn-accent px-4 text-sm font-semibold";
+  const buttonClass = `inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-[8px] px-4 text-sm font-semibold ${
+    action?.variant === "secondary" ? "btn-secondary" : "btn-accent"
+  }`;
 
   return (
     <div
       className={`flex flex-col items-center justify-center px-6 text-center ${
-        compact ? "py-12" : "min-h-[40vh] py-16"
-      }`}
+        compact ? "py-10" : "min-h-[40vh] py-16"
+      } ${className}`}
     >
-      <div className="mb-5 flex size-14 items-center justify-center rounded-2xl bg-surface text-ink">
-        <Icon className="size-6" strokeWidth={1.75} />
+      <div
+        className={`mb-4 flex items-center justify-center rounded-2xl bg-surface text-ink ${
+          compact ? "size-12" : "mb-5 size-14"
+        }`}
+      >
+        <Icon
+          className={compact ? "size-5" : "size-6"}
+          strokeWidth={1.75}
+          aria-hidden
+        />
       </div>
-      <h3 className="font-[family-name:var(--font-brand)] text-xl font-bold tracking-tight text-ink">
+      <h3
+        className={
+          compact
+            ? "text-sm font-semibold text-ink"
+            : "font-[family-name:var(--font-brand)] text-xl font-bold tracking-tight text-ink"
+        }
+      >
         {title}
       </h3>
-      <p className="mt-2 max-w-md text-sm leading-relaxed text-muted">
+      <p
+        className={`mt-1.5 max-w-sm text-sm leading-relaxed text-muted ${
+          compact ? "" : "mt-2 max-w-md"
+        }`}
+      >
         {description}
       </p>
       {action ? (
         action.href ? (
-          <Link href={action.href} className={`mt-6 ${buttonClass}`}>
+          <Link href={action.href} className={`mt-5 ${buttonClass}`}>
             {ActionIcon ? (
               <ActionIcon className="size-4" strokeWidth={2.25} />
             ) : null}
@@ -58,7 +81,7 @@ export default function EmptyState({
           <button
             type="button"
             onClick={action.onClick}
-            className={`mt-6 ${buttonClass}`}
+            className={`mt-5 ${buttonClass}`}
           >
             {ActionIcon ? (
               <ActionIcon className="size-4" strokeWidth={2.25} />
@@ -88,7 +111,7 @@ export function SearchEmpty({
       <button
         type="button"
         onClick={onClear}
-        className="mt-5 inline-flex h-10 cursor-pointer items-center rounded-xl border border-border px-4 text-sm font-medium text-ink hover-soft"
+        className="mt-5 inline-flex h-10 cursor-pointer items-center rounded-[8px] btn-secondary px-4 text-sm font-semibold"
       >
         Clear Search
       </button>

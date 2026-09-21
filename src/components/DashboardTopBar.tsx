@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ArrowLeft,
   BookOpen,
   CircleHelp,
   FileText,
@@ -156,7 +155,6 @@ export default function DashboardTopBar({
   };
 
   const nested = breadcrumb && breadcrumb.length > 1 ? breadcrumb : null;
-  const backHref = nested?.[0]?.href;
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur-sm sm:px-6 md:h-16 md:px-8">
@@ -167,15 +165,6 @@ export default function DashboardTopBar({
             aria-label="Breadcrumb"
             className="flex items-center gap-1.5 text-sm"
           >
-            {backHref ? (
-              <Link
-                href={backHref}
-                aria-label={`Back to ${nested[0].label}`}
-                className="mr-0.5 flex size-7 shrink-0 items-center justify-center rounded-[6px] text-muted outline-none hover:bg-surface-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-ink/20"
-              >
-                <ArrowLeft className="size-4" strokeWidth={1.75} />
-              </Link>
-            ) : null}
             {nested.map((crumb, i) => (
               <span
                 key={`${crumb.label}-${i}`}
@@ -227,24 +216,32 @@ export default function DashboardTopBar({
         </button>
       </div>
 
-      {/* Right — Quick create + Help only */}
-      <div className="flex shrink-0 items-center gap-1">
+      {/* Right — Quick create + Help */}
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         <div className="relative">
           <button
             type="button"
-            aria-label="Quick create"
+            aria-label="Open quick create"
             aria-expanded={createOpen}
             onClick={() => {
               setHelpOpen(false);
               setCreateOpen((v) => !v);
             }}
-            className={`flex size-9 cursor-pointer items-center justify-center rounded-[8px] outline-none focus-visible:ring-2 focus-visible:ring-ink/20 ${
+            className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-[8px] px-2.5 outline-none focus-visible:ring-2 focus-visible:ring-ink/20 sm:px-3 ${
               createOpen
-                ? "bg-accent text-ink"
-                : "text-muted hover-soft-muted"
+                ? "bg-surface text-ink"
+                : "text-muted hover-bg-muted"
             }`}
           >
-            <Plus className="size-[18px]" strokeWidth={2} />
+            <span
+              aria-hidden
+              className="flex size-7 shrink-0 items-center justify-center rounded-[6px] bg-accent text-ink"
+            >
+              <Plus className="size-4" strokeWidth={2.25} />
+            </span>
+            <span className="hidden text-sm font-medium sm:inline">
+              Open quick create
+            </span>
           </button>
           <MenuPanel open={createOpen} onClose={() => setCreateOpen(false)}>
             <MenuItem
@@ -280,11 +277,14 @@ export default function DashboardTopBar({
               setCreateOpen(false);
               setHelpOpen((v) => !v);
             }}
-            className={`flex size-9 cursor-pointer items-center justify-center rounded-[8px] outline-none focus-visible:ring-2 focus-visible:ring-ink/20 ${
-              helpOpen ? "bg-surface text-ink" : "text-muted hover-soft-muted"
+            className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-[8px] px-2.5 outline-none focus-visible:ring-2 focus-visible:ring-ink/20 sm:px-3 ${
+              helpOpen
+                ? "bg-surface text-ink"
+                : "text-muted hover-bg-muted"
             }`}
           >
-            <CircleHelp className="size-[18px]" strokeWidth={1.75} />
+            <CircleHelp className="size-[18px] shrink-0" strokeWidth={1.75} />
+            <span className="hidden text-sm font-medium sm:inline">Help</span>
           </button>
           <MenuPanel
             open={helpOpen}

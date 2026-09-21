@@ -103,7 +103,7 @@ export function PermissionDenied({
     >
       <Link
         href={backHref}
-        className="inline-flex h-11 cursor-pointer items-center rounded-2xl btn-accent px-5 text-sm font-semibold"
+        className="inline-flex h-11 cursor-pointer items-center rounded-[8px] btn-accent px-5 text-sm font-semibold"
       >
         {backLabel}
       </Link>
@@ -121,7 +121,7 @@ export function SessionExpired() {
     >
       <Link
         href="/login"
-        className="inline-flex h-11 cursor-pointer items-center rounded-2xl btn-accent px-5 text-sm font-semibold"
+        className="inline-flex h-11 cursor-pointer items-center rounded-[8px] btn-accent px-5 text-sm font-semibold"
       >
         Log in
       </Link>

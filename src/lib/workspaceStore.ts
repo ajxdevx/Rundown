@@ -112,6 +112,11 @@ export function workspaceInitials(name: string) {
   return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
 }
 
+/** Deterministic seed list for SSR / first paint (no sessionStorage). */
+export function getSeedWorkspaces(): Workspace[] {
+  return SEED_WORKSPACES.filter((w) => !w.archived);
+}
+
 export function getWorkspaces(includeArchived = false): Workspace[] {
   const list = readWorkspaces();
   return includeArchived ? list : list.filter((w) => !w.archived);

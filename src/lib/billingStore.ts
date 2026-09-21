@@ -28,15 +28,15 @@ export type BillingState = {
 const STORAGE_KEY = "dueso:billing";
 
 const DEFAULT: BillingState = {
-  plan: "free",
+  plan: "pro",
   status: "active",
   nextBillingDate: "2026-10-12",
   proUntil: null,
   paymentMethodLast4: "4242",
   usage: {
-    projects: 1,
-    clients: 1,
-    storageGb: 0.4,
+    projects: 4,
+    clients: 3,
+    storageGb: 0.8,
   },
 };
 

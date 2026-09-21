@@ -96,7 +96,7 @@ export function UpgradeCheckout({
             <button
               type="button"
               onClick={handleClose}
-              className="mt-6 inline-flex h-12 w-full cursor-pointer items-center justify-center rounded-2xl btn-accent px-4 text-sm font-semibold"
+              className="mt-6 inline-flex h-12 w-full cursor-pointer items-center justify-center rounded-[8px] btn-accent px-4 text-sm font-semibold"
             >
               Continue
             </button>
@@ -157,7 +157,7 @@ export function UpgradeCheckout({
               type="button"
               onClick={submit}
               disabled={loading}
-              className="relative mt-6 inline-flex h-12 w-full cursor-pointer items-center justify-center rounded-2xl btn-accent px-4 text-sm font-semibold disabled:opacity-60"
+              className="relative mt-6 inline-flex h-12 w-full cursor-pointer items-center justify-center rounded-[8px] btn-accent px-4 text-sm font-semibold disabled:opacity-60"
             >
               {loading ? (
                 <Loader2 className="size-5 animate-spin" />
@@ -210,14 +210,14 @@ export function PlanLimitModal({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-11 cursor-pointer items-center justify-center rounded-2xl border border-border px-5 text-sm font-semibold hover-soft"
+            className="inline-flex h-11 cursor-pointer items-center justify-center rounded-[8px] btn-secondary px-5 text-sm font-semibold"
           >
             Not now
           </button>
           <button
             type="button"
             onClick={onUpgrade}
-            className="inline-flex h-11 cursor-pointer items-center justify-center rounded-2xl btn-accent px-5 text-sm font-semibold"
+            className="inline-flex h-11 cursor-pointer items-center justify-center rounded-[8px] btn-accent px-5 text-sm font-semibold"
           >
             Upgrade to Pro
           </button>
@@ -269,14 +269,14 @@ export function CancelSubscriptionModal({
               <button
                 type="button"
                 onClick={close}
-                className="inline-flex h-11 cursor-pointer items-center justify-center rounded-2xl btn-accent px-5 text-sm font-semibold"
+                className="inline-flex h-11 cursor-pointer items-center justify-center rounded-[8px] btn-accent px-5 text-sm font-semibold"
               >
                 Keep Pro
               </button>
               <button
                 type="button"
                 onClick={() => setStep("confirm")}
-                className="inline-flex h-11 cursor-pointer items-center justify-center rounded-2xl border border-border px-5 text-sm font-semibold hover-soft"
+                className="inline-flex h-11 cursor-pointer items-center justify-center rounded-[8px] btn-secondary px-5 text-sm font-semibold"
               >
                 Continue Cancellation
               </button>
@@ -294,7 +294,7 @@ export function CancelSubscriptionModal({
               <button
                 type="button"
                 onClick={() => setStep("warn")}
-                className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-border px-5 text-sm font-semibold hover-soft"
+                className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-[8px] btn-secondary px-5 text-sm font-semibold"
               >
                 <X className="size-4" />
                 Go back

@@ -36,6 +36,7 @@ import { useUnreadBadge } from "@/lib/notificationsStore";
 import { useProfileSettings } from "@/lib/settingsStore";
 import {
   DEFAULT_WORKSPACE_ID,
+  getSeedWorkspaces,
   WORKSPACE_CHANGED,
   getActiveWorkspace,
   getActiveWorkspaceId,
@@ -74,21 +75,17 @@ function NavItem({
       href={href}
       className={`relative flex h-9 items-center gap-2.5 rounded-[8px] px-2.5 text-sm font-medium outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ink/20 ${
         active
-          ? "bg-accent-soft text-ink"
-          : "text-muted hover:bg-surface-hover hover:text-ink"
+          ? "bg-accent text-ink"
+          : "text-muted hover:bg-bg-hover hover:text-ink"
       }`}
     >
-      {active ? (
-        <span
-          className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-accent"
-          aria-hidden
-        />
-      ) : null}
       <Icon className="size-4 shrink-0 opacity-80" strokeWidth={1.75} />
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {badge && badge > 0 ? (
         <span
-          className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold tabular-nums text-ink"
+          className={`ml-auto flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold tabular-nums ${
+            active ? "bg-ink text-card" : "bg-accent text-ink"
+          }`}
           aria-label={`${badge > 9 ? "9 or more" : badge} unread`}
         >
           {badge > 9 ? "9+" : badge}
@@ -112,8 +109,8 @@ function NestedLink({
       href={href}
       className={`block truncate rounded-[6px] px-2.5 py-1.5 text-[13px] transition-colors ${
         active
-          ? "bg-surface font-medium text-ink"
-          : "text-muted hover:bg-surface-hover hover:text-ink"
+          ? "bg-accent font-medium text-ink"
+          : "text-muted hover:bg-bg-hover hover:text-ink"
       }`}
     >
       {label}
@@ -171,16 +168,10 @@ function ExpandableSection({
       <div
         className={`relative flex h-9 items-center rounded-[8px] transition-colors ${
           active
-            ? "bg-accent-soft text-ink"
-            : "text-muted hover:bg-surface-hover hover:text-ink"
+            ? "bg-accent text-ink"
+            : "text-muted hover:bg-bg-hover hover:text-ink"
         }`}
       >
-        {active ? (
-          <span
-            className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-accent"
-            aria-hidden
-          />
-        ) : null}
         <Link
           href={href}
           className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[8px] px-2.5 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ink/20"
@@ -193,7 +184,7 @@ function ExpandableSection({
           aria-label={open ? `Collapse ${label}` : `Expand ${label}`}
           aria-expanded={open}
           onClick={onToggle}
-          className="mr-1 flex size-7 cursor-pointer items-center justify-center rounded-[6px] text-muted outline-none hover:bg-surface-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-ink/20"
+          className="mr-1 flex size-7 cursor-pointer items-center justify-center rounded-[6px] text-muted outline-none hover:bg-bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-ink/20"
         >
           <ChevronDown
             className={`size-3.5 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
@@ -219,14 +210,8 @@ function WorkspaceSwitcher() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const [workspaces, setWorkspaces] = useState(() =>
-    typeof window !== "undefined" ? getWorkspaces() : [],
-  );
-  const [activeId, setActiveId] = useState(() =>
-    typeof window !== "undefined"
-      ? getActiveWorkspaceId()
-      : DEFAULT_WORKSPACE_ID,
-  );
+  const [workspaces, setWorkspaces] = useState(() => getSeedWorkspaces());
+  const [activeId, setActiveId] = useState(() => DEFAULT_WORKSPACE_ID);
   const ref = useRef<HTMLDivElement>(null);
 
   const refresh = () => {
@@ -266,7 +251,7 @@ function WorkspaceSwitcher() {
     }
     setActiveWorkspace(id);
     setOpen(false);
-    router.push("/");
+    router.push("/dashboard");
   };
 
   return (
@@ -322,7 +307,7 @@ function WorkspaceSwitcher() {
                     onClick={() => switchTo(ws.id)}
                     className={`flex w-full cursor-pointer items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-ink/20 ${
                       selected
-                        ? "bg-accent-soft font-medium text-ink"
+                        ? "bg-accent font-medium text-ink"
                         : "text-muted hover-soft hover:text-ink"
                     }`}
                   >
@@ -402,7 +387,7 @@ function UpgradeCard() {
       </div>
       <Link
         href="/billing"
-        className="mt-2.5 flex h-7 w-full cursor-pointer items-center justify-center rounded-[7px] bg-ink text-[11px] font-semibold text-white outline-none transition-colors hover:bg-ink/90 focus-visible:ring-2 focus-visible:ring-ink/20"
+        className="mt-2.5 flex h-7 w-full cursor-pointer items-center justify-center rounded-[7px] btn-secondary text-[11px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ink/20"
       >
         Upgrade →
       </Link>
@@ -509,7 +494,7 @@ function CategoryHeader({
       aria-expanded={open}
       aria-label={open ? `Collapse ${label}` : `Expand ${label}`}
       onClick={onToggle}
-      className="mb-1.5 flex w-fit max-w-full cursor-pointer items-center gap-1 rounded-[6px] px-2.5 py-0.5 text-left outline-none transition-colors hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-ink/20"
+      className="mb-1.5 flex w-fit max-w-full cursor-pointer items-center gap-1 rounded-[6px] px-2.5 py-0.5 text-left outline-none transition-colors hover:bg-bg-hover focus-visible:ring-2 focus-visible:ring-ink/20"
     >
       <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-soft">
         {label}
@@ -715,7 +700,7 @@ export default function Sidebar() {
   const firstName = displayName.trim().split(/\s+/)[0] || "Alex";
 
   const isActive = (href: string) => {
-    if (href === "/") return pathname === "/";
+    if (href === "/dashboard") return pathname === "/dashboard";
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
@@ -734,7 +719,7 @@ export default function Sidebar() {
     >
       <div className="shrink-0 border-b border-border pt-3">
         <Link
-          href="/"
+          href="/dashboard"
           className="mb-3 flex items-center gap-2.5 px-5"
           aria-label="Dueso home"
         >
@@ -760,10 +745,10 @@ export default function Sidebar() {
           <Collapsible open={mainOpen}>
             <div className="flex flex-col gap-0.5">
               <NavItem
-                href="/"
+                href="/dashboard"
                 label="Dashboard"
                 icon={LayoutDashboard}
-                active={isActive("/")}
+                active={isActive("/dashboard")}
               />
 
               <ExpandableSection
@@ -787,7 +772,7 @@ export default function Sidebar() {
                     <button
                       type="button"
                       onClick={() => projectModal?.openCreate()}
-                      className="flex w-full cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 text-left text-[13px] font-medium text-ink hover:bg-surface-hover"
+                      className="flex w-full cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 text-left text-[13px] font-medium text-ink hover:bg-bg-hover"
                     >
                       <Plus className="size-3.5" strokeWidth={2.25} />
                       New Project
@@ -817,7 +802,7 @@ export default function Sidebar() {
                     <button
                       type="button"
                       onClick={() => clientModal?.openAdd()}
-                      className="flex w-full cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 text-left text-[13px] font-medium text-ink hover:bg-surface-hover"
+                      className="flex w-full cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 text-left text-[13px] font-medium text-ink hover:bg-bg-hover"
                     >
                       <Plus className="size-3.5" strokeWidth={2.25} />
                       Add Client
@@ -873,7 +858,7 @@ export default function Sidebar() {
             className={`group flex w-full items-center gap-1 rounded-[8px] px-1.5 py-1.5 transition-colors ${
               accountOpen
                 ? "bg-surface"
-                : "hover:bg-surface-hover has-[[data-hover-stop]:hover]:bg-transparent"
+                : "hover:bg-bg-hover has-[[data-hover-stop]:hover]:bg-transparent"
             }`}
           >
             <button

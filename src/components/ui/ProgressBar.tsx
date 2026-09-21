@@ -12,31 +12,29 @@ export function ProgressBar({
   className = "",
 }: ProgressBarProps) {
   const pct = Math.max(0, Math.min(100, Math.round(value)));
-  const done = pct >= 100;
 
   return (
     <div className={className}>
       {(label || meta) && (
-        <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="mb-1.5 flex items-center justify-between gap-3">
           {label ? (
             <p className="text-sm font-medium text-ink">{label}</p>
+          ) : meta ? (
+            <p className="min-w-0 truncate text-xs text-muted">{meta}</p>
           ) : (
             <span />
           )}
-          {meta ? <p className="text-sm text-muted">{meta}</p> : null}
+          {label && meta ? (
+            <p className="shrink-0 text-sm text-muted">{meta}</p>
+          ) : null}
         </div>
       )}
-      <div className="h-2 overflow-hidden rounded-full bg-surface">
+      <div className="h-1.5 overflow-hidden rounded-full bg-surface">
         <div
-          className={`h-full rounded-full transition-all duration-300 ease-out ${
-            done ? "bg-success" : "bg-accent"
-          }`}
+          className="h-full rounded-full bg-accent transition-[width] duration-300 ease-out"
           style={{ width: `${pct}%` }}
         />
       </div>
-      {done ? (
-        <p className="mt-2 text-xs font-medium text-success">Completed</p>
-      ) : null}
     </div>
   );
 }

@@ -309,7 +309,7 @@ function FormFooter({
         type="button"
         onClick={onCancel}
         disabled={!dirty || saving}
-        className="inline-flex h-10 cursor-pointer items-center rounded-[8px] border border-border px-4 text-sm font-medium text-ink hover-soft disabled:cursor-not-allowed disabled:opacity-40"
+        className="inline-flex h-10 cursor-pointer items-center rounded-[8px] btn-secondary px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
       >
         Cancel
       </button>
@@ -612,7 +612,7 @@ export default function SettingsPage({
       return;
     }
     toast?.success("Workspace archived");
-    router.push("/");
+    router.push("/dashboard");
   };
 
   const onDelete = () => {
@@ -624,7 +624,7 @@ export default function SettingsPage({
     setDeleteOpen(false);
     setDeleteConfirm("");
     toast?.success("Workspace deleted");
-    router.push("/");
+    router.push("/dashboard");
   };
 
   const otherWorkspaces = getWorkspaces().filter((w) => w.id !== workspaceId);
@@ -660,16 +660,10 @@ export default function SettingsPage({
                         onClick={() => goTo(item.href)}
                         className={`relative flex h-9 shrink-0 cursor-pointer items-center gap-2.5 rounded-[8px] px-2.5 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ink/20 ${
                           active
-                            ? "bg-accent-soft text-ink"
-                            : "text-muted hover:bg-surface-hover hover:text-ink"
+                            ? "bg-accent text-ink"
+                            : "text-muted hover:bg-bg-hover hover:text-ink"
                         }`}
                       >
-                        {active ? (
-                          <span
-                            className="absolute left-0 top-1/2 hidden h-4 w-0.5 -translate-y-1/2 rounded-full bg-accent md:block"
-                            aria-hidden
-                          />
-                        ) : null}
                         <item.icon
                           className="size-4 shrink-0 opacity-80"
                           strokeWidth={1.75}
@@ -1078,7 +1072,7 @@ export default function SettingsPage({
                   <button
                     type="button"
                     onClick={() => setPasswordOpen(true)}
-                    className="inline-flex h-10 cursor-pointer items-center rounded-[8px] border border-border px-4 text-sm font-medium text-ink hover-soft"
+                    className="inline-flex h-10 cursor-pointer items-center rounded-[8px] btn-secondary px-4 text-sm font-semibold"
                   >
                     Change Password
                   </button>
@@ -1107,7 +1101,7 @@ export default function SettingsPage({
                     onClick={() =>
                       toast?.success("Signed out of other sessions")
                     }
-                    className="inline-flex h-10 cursor-pointer items-center rounded-[8px] border border-border px-4 text-sm font-medium text-ink hover-soft"
+                    className="inline-flex h-10 cursor-pointer items-center rounded-[8px] btn-secondary px-4 text-sm font-semibold"
                   >
                     Sign out of all other sessions
                   </button>
@@ -1202,7 +1196,7 @@ export default function SettingsPage({
                   <Link
                     href="/p/acme-website-redesign"
                     target="_blank"
-                    className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-[8px] border border-border px-4 text-sm font-medium text-ink hover-soft"
+                    className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-[8px] btn-secondary px-4 text-sm font-semibold"
                   >
                     Preview Client Portal
                     <ExternalLink className="size-3.5" strokeWidth={1.75} />
@@ -1279,7 +1273,7 @@ export default function SettingsPage({
                           }}
                           className={`h-10 flex-1 cursor-pointer rounded-[8px] text-sm font-medium ${
                             prefs.defaultProjectStatus === s
-                              ? "bg-ink text-card"
+                              ? "bg-accent text-ink"
                               : "border border-border text-muted hover-soft"
                           }`}
                         >
@@ -1359,7 +1353,7 @@ export default function SettingsPage({
                     type="button"
                     disabled={otherWorkspaces.length === 0}
                     onClick={() => setArchiveOpen(true)}
-                    className="inline-flex h-10 cursor-pointer items-center rounded-[8px] border border-border px-4 text-sm font-medium text-ink hover-soft disabled:cursor-not-allowed disabled:opacity-40"
+                    className="inline-flex h-10 cursor-pointer items-center rounded-[8px] btn-secondary px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Archive Workspace
                   </button>
@@ -1416,14 +1410,14 @@ export default function SettingsPage({
             <button
               type="button"
               onClick={() => setUnsavedOpen(false)}
-              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-[8px] border border-border px-4 text-sm font-medium text-ink hover-soft"
+              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-[8px] btn-secondary px-4 text-sm font-semibold"
             >
               Continue Editing
             </button>
             <button
               type="button"
               onClick={discardAndNavigate}
-              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-[8px] bg-ink px-4 text-sm font-semibold text-card"
+              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-[8px] btn-danger px-4 text-sm font-semibold"
             >
               Discard
             </button>
@@ -1486,7 +1480,7 @@ export default function SettingsPage({
               type="button"
               disabled={pwSaving}
               onClick={() => setPasswordOpen(false)}
-              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-[8px] border border-border px-4 text-sm font-medium text-ink hover-soft"
+              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-[8px] btn-secondary px-4 text-sm font-semibold"
             >
               Cancel
             </button>
@@ -1527,14 +1521,14 @@ export default function SettingsPage({
             <button
               type="button"
               onClick={() => setArchiveOpen(false)}
-              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-[8px] border border-border px-4 text-sm font-medium text-ink hover-soft"
+              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-[8px] btn-secondary px-4 text-sm font-semibold"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={onArchive}
-              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-[8px] bg-ink px-4 text-sm font-semibold text-card"
+              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-[8px] btn-secondary px-4 text-sm font-semibold"
             >
               Archive Workspace
             </button>
@@ -1577,7 +1571,7 @@ export default function SettingsPage({
             <button
               type="button"
               onClick={() => setDeleteOpen(false)}
-              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-[8px] border border-border px-4 text-sm font-medium text-ink hover-soft"
+              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-[8px] btn-secondary px-4 text-sm font-semibold"
             >
               Cancel
             </button>

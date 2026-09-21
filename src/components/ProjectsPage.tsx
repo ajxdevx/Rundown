@@ -2,9 +2,11 @@
 
 import {
   Archive,
-  Check,
   CheckCircle2,
   ChevronDown,
+  CircleCheck,
+  CircleDashed,
+  CirclePause,
   Copy,
   CopyPlus,
   FolderKanban,
@@ -38,6 +40,7 @@ import { ProjectsPageSkeleton } from "@/components/skeletons";
 import { useToastOptional } from "@/components/ToastProvider";
 import { useProjectModal } from "@/components/ProjectModalProvider";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { AppCheckbox } from "@/components/ui/AppCheckbox";
 import {
   paymentStatusIcon,
   paymentStatusTone,
@@ -45,11 +48,13 @@ import {
   projectStatusTone,
   StatusBadge,
 } from "@/components/ui/StatusBadge";
+import ProjectCard from "@/components/ProjectCard";
 import {
   type ActiveProject,
   type PaymentStatus,
   type ProjectStatus,
 } from "@/data/dashboardMock";
+import { applySeedFinance } from "@/data/seedWorkspace";
 import { useInitialLoading } from "@/hooks/useInitialLoading";
 import { useBilling } from "@/lib/billingStore";
 import {
@@ -59,6 +64,14 @@ import {
   commitCreatedProject,
   type CreatedProject,
 } from "@/lib/createProject";
+import { deadlineLabelFromIso, deadlineToneSurface } from "@/lib/deadlineLabel";
+import {
+  parseProjectsViewMode,
+  PROJECTS_FILTER_WIDTHS,
+  PROJECTS_VIEW_COOKIE,
+  PROJECTS_VIEW_KEY,
+  type ProjectsViewMode,
+} from "@/lib/projectsView";
 import { getActiveWorkspaceId } from "@/lib/workspaceStore";
 import { backgroundSync } from "@/lib/optimistic";
 import { markSlugTaken, uniqueProjectSlug } from "@/lib/projectSlug";
@@ -82,17 +95,26 @@ type SortKey =
 
 type PaymentFilter = "paid" | "due" | "overdue" | "processing" | "failed";
 
-type ViewMode = "list" | "grid";
+type ViewMode = ProjectsViewMode;
 
-const VIEW_KEY = "dueso:projects-view";
-
-/** Shared list table tracks — fixed action width so header + rows stay aligned. */
+/** Shared list table tracks — same data fields as grid ProjectCard. */
 const LIST_COLS =
-  "lg:grid-cols-[minmax(0,1.5fr)_9rem_5.5rem_7.5rem_7.5rem_minmax(5rem,1fr)_14.5rem]";
+  "lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_9rem_6.5rem_6.5rem_4.75rem_4.75rem_5.25rem_4.5rem_14.5rem]";
 
 function readViewMode(): ViewMode {
-  if (typeof window === "undefined") return "list";
-  return window.localStorage.getItem(VIEW_KEY) === "grid" ? "grid" : "list";
+  if (typeof window === "undefined") return "grid";
+  const stored = window.localStorage.getItem(PROJECTS_VIEW_KEY);
+  if (stored === "list" || stored === "grid") return stored;
+  const match = document.cookie.match(
+    new RegExp(`(?:^|; )${PROJECTS_VIEW_COOKIE}=(list|grid)`),
+  );
+  return parseProjectsViewMode(match?.[1]);
+}
+
+function persistViewMode(mode: ViewMode) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(PROJECTS_VIEW_KEY, mode);
+  document.cookie = `${PROJECTS_VIEW_COOKIE}=${mode}; path=/; max-age=31536000; SameSite=Lax`;
 }
 
 type ListProject = {
@@ -134,7 +156,7 @@ const SORT_OPTIONS: { id: SortKey; label: string }[] = [
 
 const PAYMENT_CHOICES: { id: PaymentFilter; label: string }[] = [
   { id: "paid", label: "Paid" },
-  { id: "due", label: "Due" },
+  { id: "due", label: "Unpaid" },
   { id: "overdue", label: "Overdue" },
   { id: "processing", label: "Processing" },
   { id: "failed", label: "Failed" },
@@ -155,15 +177,18 @@ function formatMoney(n: number) {
 function moneyToneClass(status?: string | null) {
   switch (status) {
     case "paid":
+    case "collected":
       return "text-success";
     case "due":
     case "pending":
     case "partial":
+    case "outstanding":
       return "text-warning";
     case "overdue":
     case "failed":
       return "text-danger";
     case "processing":
+    case "sent":
       return "text-info";
     default:
       return "text-ink";
@@ -177,9 +202,9 @@ function paymentLabel(status: PaymentStatus) {
     case "due":
     case "pending":
     case "partial":
-      return "Due";
+      return "Unpaid";
     case "overdue":
-      return "Overdue";
+      return "Past due";
     case "processing":
       return "Processing";
     case "failed":
@@ -220,32 +245,9 @@ function normalizePayment(status: PaymentStatus): PaymentFilter | "other" {
 const chipClass = (active: boolean) =>
   `h-8 cursor-pointer rounded-[8px] px-3 text-xs font-medium transition-colors ${
     active
-      ? "bg-accent-soft text-ink"
-      : "text-muted hover:bg-surface-hover hover:text-ink"
+      ? "bg-accent text-ink"
+      : "text-muted hover:bg-bg-hover hover:text-ink"
   }`;
-
-function deadlineLabelFromIso(iso: string): string {
-  if (!iso) return "No deadline";
-  const due = new Date(iso);
-  if (Number.isNaN(due.getTime())) return "No deadline";
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const d = new Date(due);
-  d.setHours(0, 0, 0, 0);
-  const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
-  if (diff === 0) return "Due today";
-  if (diff === 1) return "Due tomorrow";
-  if (diff > 1 && diff <= 14) return `Due in ${diff} days`;
-  if (diff < 0) {
-    const n = Math.abs(diff);
-    return `Overdue by ${n} day${n === 1 ? "" : "s"}`;
-  }
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 function createdToList(p: CreatedProject): ListProject {
   const done = p.tasks.filter((t) => t.done).length;
@@ -254,7 +256,7 @@ function createdToList(p: CreatedProject): ListProject {
   const currentTask =
     p.tasks.find((t) => !t.done)?.name ||
     (total > 0 ? "All tasks complete" : "No tasks yet");
-  return {
+  return applySeedFinance({
     id: p.id,
     slug: p.slug,
     name: p.name,
@@ -269,10 +271,10 @@ function createdToList(p: CreatedProject): ListProject {
     paid: 0,
     paymentStatus: "due",
     status: p.status,
-    updatedAt: p.createdAt,
+    updatedAt: p.updatedAt || p.createdAt,
     createdAt: p.createdAt,
-    source: "created",
-  };
+    source: "created" as const,
+  });
 }
 
 function buildInitialProjects(): ListProject[] {
@@ -384,17 +386,8 @@ function MultiSelectDropdown({
         onClick={onSelect}
         className="flex w-full cursor-pointer items-center gap-2.5 rounded-[8px] px-3 py-2 text-left text-sm text-ink hover-soft"
       >
-        <span
-          aria-hidden
-          className={`flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors ${
-            active
-              ? "border-ink bg-ink text-card"
-              : "border-border bg-card"
-          }`}
-        >
-          {active ? <Check className="size-3" strokeWidth={2.5} /> : null}
-        </span>
-        <span className="min-w-0 truncate">{label}</span>
+        <AppCheckbox checked={active} size="sm" />
+        <span className="min-w-0 truncate font-medium">{label}</span>
       </button>
     </li>
   );
@@ -415,7 +408,7 @@ function MultiSelectDropdown({
           >
             {widthLabel}
           </span>
-          <span className="col-start-1 row-start-1 whitespace-nowrap">
+          <span className="col-start-1 row-start-1 truncate whitespace-nowrap">
             {buttonLabel}
           </span>
         </span>
@@ -452,7 +445,11 @@ function MultiSelectDropdown({
   );
 }
 
-export default function ProjectsPage() {
+export default function ProjectsPage({
+  initialViewMode = "grid",
+}: {
+  initialViewMode?: ViewMode;
+}) {
   const router = useRouter();
   const { openCreate, openEdit } = useProjectModal();
   const toast = useToastOptional();
@@ -473,15 +470,17 @@ export default function ProjectsPage() {
   const [deleteTarget, setDeleteTarget] = useState<ListProject | null>(null);
   const [limitOpen, setLimitOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
 
   useEffect(() => {
-    setViewMode(readViewMode());
+    const stored = readViewMode();
+    setViewMode(stored);
+    persistViewMode(stored);
   }, []);
 
   const setView = (mode: ViewMode) => {
     setViewMode(mode);
-    window.localStorage.setItem(VIEW_KEY, mode);
+    persistViewMode(mode);
   };
 
   useEffect(() => {
@@ -746,10 +745,7 @@ export default function ProjectsPage() {
                     status: values.status,
                     deadlineAt: values.deadline || p.deadlineAt,
                     deadlineLabel: values.deadline
-                      ? new Date(values.deadline).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })
+                      ? deadlineLabelFromIso(values.deadline)
                       : "No deadline",
                     progress:
                       values.tasks.length === 0
@@ -800,8 +796,6 @@ export default function ProjectsPage() {
   const emptyTitle = (() => {
     if (!hasAnyProjects) return null;
     if (query.trim() && filtered.length === 0) return "No projects found";
-    if (filter === "archived" && filtered.length === 0)
-      return "No archived projects";
     if (filter !== "all" && filtered.length === 0) {
       const label =
         FILTERS.find((f) => f.id === filter)?.label.toLowerCase() ?? "matching";
@@ -811,14 +805,103 @@ export default function ProjectsPage() {
     return null;
   })();
 
+  const emptyDescription = (() => {
+    if (query.trim()) return "Try adjusting your search or filters.";
+    switch (filter) {
+      case "active":
+        return "Active projects will show up here once you start one.";
+      case "draft":
+        return "Drafts you save will appear here until you’re ready to start.";
+      case "on-hold":
+        return "Paused projects will appear here when you put one on hold.";
+      case "completed":
+        return "Finished projects will land here when you mark them complete.";
+      case "archived":
+        return "Archived projects will appear here.";
+      default:
+        return "Projects matching this filter will appear here.";
+    }
+  })();
+
+  const emptyIcon = (() => {
+    switch (filter) {
+      case "on-hold":
+        return CirclePause;
+      case "completed":
+        return CircleCheck;
+      case "archived":
+        return Archive;
+      case "draft":
+        return CircleDashed;
+      default:
+        return FolderKanban;
+    }
+  })();
+
   return (
     <div className="flex min-h-full flex-col">
-      <DashboardTopBar context="Projects" />
+      <DashboardTopBar />
 
       {loading ? (
         <ProjectsPageSkeleton viewMode={viewMode} />
       ) : (
-        <div className="w-full flex-1 px-4 py-6 sm:px-6 md:px-8 md:py-8">
+        <div className="flex w-full flex-1 flex-col px-4 py-6 sm:px-6 md:px-8 md:py-8">
+          {loadError ? (
+            <>
+              <div className="mb-8">
+                <h2 className="page-title">Projects</h2>
+                <p className="mt-1.5 text-sm text-muted">
+                  Manage your projects and keep everything moving.
+                </p>
+              </div>
+              <div
+                role="alert"
+                className="card-surface flex flex-col items-start gap-3 px-5 py-8 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-ink">
+                    Couldn&apos;t load projects
+                  </p>
+                  <p className="mt-1 text-sm text-muted">
+                    Try again to view your projects.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={retryLoad}
+                  className="inline-flex h-9 cursor-pointer items-center rounded-[8px] btn-secondary px-3.5 text-sm font-semibold"
+                >
+                  Retry
+                </button>
+              </div>
+            </>
+          ) : !hasAnyProjects ? (
+            <div className="flex flex-1 flex-col items-center justify-center px-4 py-12 sm:px-8">
+              <div className="mb-6 flex size-16 items-center justify-center rounded-[20px] bg-surface text-ink sm:size-[4.5rem]">
+                <FolderKanban
+                  className="size-7 sm:size-8"
+                  strokeWidth={1.75}
+                  aria-hidden
+                />
+              </div>
+              <h2 className="font-[family-name:var(--font-brand)] text-center text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+                No projects yet
+              </h2>
+              <p className="mt-3 max-w-lg text-center text-base leading-relaxed text-muted">
+                Create your first project to start managing your work and
+                sharing it with clients.
+              </p>
+              <button
+                type="button"
+                onClick={openNewProject}
+                className="mt-8 inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-[8px] btn-accent px-5 text-sm font-semibold"
+              >
+                <Plus className="size-4" strokeWidth={2.25} />
+                Create Project
+              </button>
+            </div>
+          ) : (
+            <>
           {/* Header */}
           <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -831,7 +914,7 @@ export default function ProjectsPage() {
               <div
                 role="group"
                 aria-label="Project layout"
-                className="inline-flex h-11 items-center rounded-[8px] border border-border bg-card p-1"
+                className="inline-flex h-11 items-center gap-0.5 rounded-[8px] border border-border bg-card p-1"
               >
                 <button
                   type="button"
@@ -857,7 +940,7 @@ export default function ProjectsPage() {
                   }`}
                 >
                   <LayoutGrid className="size-3.5" strokeWidth={1.75} />
-                  Rows
+                  Grid
                 </button>
               </div>
 
@@ -872,49 +955,13 @@ export default function ProjectsPage() {
             </div>
           </div>
 
-          {loadError ? (
-            <div
-              role="alert"
-              className="card-surface flex flex-col items-start gap-3 px-5 py-8 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div>
-                <p className="text-sm font-semibold text-ink">
-                  Couldn&apos;t load projects
-                </p>
-                <p className="mt-1 text-sm text-muted">
-                  Try again to view your projects.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={retryLoad}
-                className="inline-flex h-9 cursor-pointer items-center rounded-[8px] border border-border px-3.5 text-sm font-medium text-ink hover:bg-surface-hover"
-              >
-                Retry
-              </button>
-            </div>
-          ) : !hasAnyProjects ? (
-            <div className="card-surface">
-              <EmptyState
-                icon={FolderKanban}
-                title="No projects yet"
-                description="Create your first project to start managing your work and sharing it with clients."
-                action={{
-                  label: "Create Project",
-                  onClick: openNewProject,
-                  icon: Plus,
-                }}
-                compact
-              />
-            </div>
-          ) : (
-            <>
               {/* Search + filters + sort */}
               <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="relative min-w-0 flex-1 lg:max-w-md">
+                <div className="relative flex h-10 min-w-0 flex-1 items-center gap-2.5 rounded-[10px] border border-border bg-card px-3 transition-colors focus-within:border-border-strong lg:max-w-md">
                   <Search
-                    className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
+                    className="size-4 shrink-0 text-muted"
                     strokeWidth={1.75}
+                    aria-hidden
                   />
                   <input
                     type="search"
@@ -922,21 +969,20 @@ export default function ProjectsPage() {
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search projects..."
                     aria-label="Search projects"
-                    className="input-field h-10 w-full rounded-[8px] pl-9 pr-9 text-sm"
+                    className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-muted-soft"
                   />
                   {query ? (
                     <button
                       type="button"
                       aria-label="Clear search"
                       onClick={() => setQuery("")}
-                      className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-[6px] text-muted hover:bg-surface-hover hover:text-ink"
+                      className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[6px] text-muted hover:bg-surface-hover hover:text-ink"
                     >
                       <X className="size-3.5" strokeWidth={2} />
                     </button>
                   ) : null}
                 </div>
-
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center gap-3">
                   <div
                     role="group"
                     aria-label="Project status"
@@ -955,7 +1001,7 @@ export default function ProjectsPage() {
                   </div>
                   <MultiSelectDropdown
                     allLabel="All payments"
-                    widthLabel="All payments"
+                    widthLabel={PROJECTS_FILTER_WIDTHS.payments}
                     options={PAYMENT_CHOICES}
                     selected={paymentFilters}
                     onChange={(next) =>
@@ -963,43 +1009,29 @@ export default function ProjectsPage() {
                     }
                     menuWidthClass="w-44"
                   />
-                  {clients.length > 0 ? (
-                    <MultiSelectDropdown
-                      allLabel="All clients"
-                      widthLabel={
-                        clients.reduce(
-                          (longest, c) =>
-                            c.length > longest.length ? c : longest,
-                          "All clients",
-                        )
-                      }
-                      options={clients.map((c) => ({ id: c, label: c }))}
-                      selected={clientFilters}
-                      onChange={setClientFilters}
-                    />
-                  ) : null}
+                  <MultiSelectDropdown
+                    allLabel="All clients"
+                    widthLabel={PROJECTS_FILTER_WIDTHS.clients}
+                    options={clients.map((c) => ({ id: c, label: c }))}
+                    selected={clientFilters}
+                    onChange={setClientFilters}
+                  />
                   <MenuDropdown
                     value={sort}
                     onChange={(v) => setSort(v as SortKey)}
                     options={SORT_OPTIONS}
                     labelPrefix="Sort: "
-                    widthLabel="Sort: Deadline soonest"
+                    widthLabel={PROJECTS_FILTER_WIDTHS.sort}
                   />
                 </div>
               </div>
 
               {emptyTitle ? (
-                <div className="card-surface">
+                <div className="card-surface flex min-h-0 flex-1 flex-col">
                   <EmptyState
-                    icon={FolderKanban}
+                    icon={emptyIcon}
                     title={emptyTitle}
-                    description={
-                      query.trim()
-                        ? "Try adjusting your search or filters."
-                        : filter === "archived"
-                          ? "Archived projects will appear here."
-                          : "Projects matching this filter will appear here."
-                    }
+                    description={emptyDescription}
                     action={
                       hasActiveFilters
                         ? {
@@ -1009,19 +1041,22 @@ export default function ProjectsPage() {
                         : undefined
                     }
                     compact
+                    className="flex-1"
                   />
                 </div>
               ) : viewMode === "list" ? (
                 <div className="card-surface overflow-hidden">
-                  {/* Column headers — progress last before actions */}
                   <div
                     className={`hidden items-center border-b border-border bg-surface/50 px-5 py-2.5 text-xs font-medium text-muted lg:grid lg:gap-4 ${LIST_COLS}`}
                   >
                     <span>Project</span>
-                    <span>Deadline</span>
-                    <span>Value</span>
-                    <span>Payment</span>
+                    <span>Client</span>
+                    <span>Due</span>
                     <span>Status</span>
+                    <span>Payment</span>
+                    <span>Value</span>
+                    <span>Paid</span>
+                    <span>Remaining</span>
                     <span>Progress</span>
                     <span className="sr-only">Actions</span>
                   </div>
@@ -1032,9 +1067,10 @@ export default function ProjectsPage() {
                         project.paymentStatus === "partial"
                           ? "due"
                           : project.paymentStatus;
-                      const overdue = project.deadlineLabel
-                        .toLowerCase()
-                        .includes("overdue");
+                      const remaining = Math.max(
+                        0,
+                        project.value - project.paid,
+                      );
                       const openProject = () =>
                         router.push(`/projects/${project.slug}`);
                       return (
@@ -1073,24 +1109,27 @@ export default function ProjectsPage() {
                               <p className="truncate text-sm font-medium text-ink">
                                 {project.name}
                               </p>
-                              <p className="mt-0.5 truncate text-xs text-muted">
-                                {project.client}
-                              </p>
                             </div>
 
-                            <p
-                              className={`min-w-0 truncate text-xs ${
-                                overdue
-                                  ? "font-medium text-danger"
-                                  : "text-muted"
-                              }`}
-                            >
-                              {project.deadlineLabel}
+                            <p className="min-w-0 truncate text-sm text-muted">
+                              {project.client}
                             </p>
 
-                            <p className="min-w-0 truncate text-sm font-medium text-ink">
-                              {formatMoney(project.value)}
-                            </p>
+                            <span
+                              className={`inline-flex w-fit max-w-full justify-self-start items-center truncate rounded-md px-2 py-1 text-[11px] font-semibold ${deadlineToneSurface(
+                                project.deadlineLabel,
+                              )}`}
+                            >
+                              {project.deadlineLabel}
+                            </span>
+
+                            <div className="min-w-0">
+                              <StatusBadge
+                                label={projectLabel(project.status)}
+                                tone={projectStatusTone(project.status)}
+                                icon={projectStatusIcon(project.status)}
+                              />
+                            </div>
 
                             <div className="min-w-0">
                               <StatusBadge
@@ -1100,13 +1139,25 @@ export default function ProjectsPage() {
                               />
                             </div>
 
-                            <div className="min-w-0">
-                              <StatusBadge
-                                label={projectLabel(project.status)}
-                                tone={projectStatusTone(project.status)}
-                                icon={projectStatusIcon(project.status)}
-                              />
-                            </div>
+                            <p className="min-w-0 truncate text-sm font-medium text-ink">
+                              {formatMoney(project.value)}
+                            </p>
+
+                            <p
+                              className={`min-w-0 truncate text-sm font-medium ${moneyToneClass("paid")}`}
+                            >
+                              {formatMoney(project.paid)}
+                            </p>
+
+                            <p
+                              className={`min-w-0 truncate text-sm font-medium ${
+                                remaining <= 0
+                                  ? moneyToneClass("paid")
+                                  : moneyToneClass(payKey)
+                              }`}
+                            >
+                              {formatMoney(remaining)}
+                            </p>
 
                             <div className="min-w-0">
                               <ProgressBar
@@ -1136,7 +1187,7 @@ export default function ProjectsPage() {
                                 href={`/projects/${project.slug}`}
                                 onClick={(e) => e.stopPropagation()}
                                 data-hover-stop
-                                className="inline-flex h-9 shrink-0 cursor-pointer items-center rounded-[8px] btn-primary px-3.5 text-sm font-medium"
+                                className="inline-flex h-9 shrink-0 cursor-pointer items-center rounded-[8px] btn-accent px-3.5 text-sm font-medium"
                               >
                                 Open
                               </Link>
@@ -1178,162 +1229,60 @@ export default function ProjectsPage() {
                   </ul>
                 </div>
               ) : (
-                <ul className="grid gap-3 lg:grid-cols-2">
-                  {filtered.map((project) => {
-                    const payKey =
-                      project.paymentStatus === "partial"
-                        ? "due"
-                        : project.paymentStatus;
-                    const overdue = project.deadlineLabel
-                      .toLowerCase()
-                      .includes("overdue");
-                    const openProject = () =>
-                      router.push(`/projects/${project.slug}`);
-                    return (
-                      <li
-                        key={project.id}
-                        role="link"
-                        tabIndex={0}
-                        onClick={(e) => {
-                          const t = e.target as HTMLElement;
-                          if (
-                            t.closest("button") ||
-                            t.closest("a") ||
-                            t.closest("[role='menu']")
-                          ) {
-                            return;
-                          }
-                          openProject();
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            openProject();
-                          }
-                        }}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          setMenuId(project.id);
-                          setMenuPos({ x: e.clientX, y: e.clientY });
-                        }}
-                        className="card-surface-interactive flex cursor-pointer flex-col p-5"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="text-[15px] font-semibold text-ink">
-                                {project.name}
-                              </h3>
-                              <StatusBadge
-                                label={projectLabel(project.status)}
-                                tone={projectStatusTone(project.status)}
-                                icon={projectStatusIcon(project.status)}
-                              />
-                              <StatusBadge
-                                label={paymentLabel(payKey)}
-                                tone={paymentStatusTone(payKey)}
-                                icon={paymentStatusIcon(payKey)}
-                              />
-                              {overdue &&
-                              project.paymentStatus !== "overdue" ? (
-                                <StatusBadge
-                                  label="Overdue"
-                                  tone="danger"
-                                  icon={paymentStatusIcon("overdue")}
-                                />
-                              ) : null}
-                            </div>
-                            <p className="mt-1 text-sm text-muted">
-                              {project.client}
-                            </p>
-                          </div>
-                          <div className="relative shrink-0">
-                            <button
-                              type="button"
-                              aria-label="Project actions"
-                              aria-expanded={
-                                menuId === project.id && !menuPos
-                              }
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (menuId === project.id && !menuPos) {
-                                  closeMenu();
-                                } else {
-                                  setMenuId(project.id);
-                                  setMenuPos(null);
-                                }
-                              }}
-                              data-hover-stop
-                              className="flex size-8 cursor-pointer items-center justify-center rounded-[8px] text-muted hover-soft"
-                            >
-                              <MoreHorizontal
-                                className="size-4"
-                                strokeWidth={1.75}
-                              />
-                            </button>
-                            {menuId === project.id && !menuPos ? (
-                              <ProjectRowMenu
-                                open
-                                showComplete={
-                                  project.status !== "completed"
-                                }
-                                onClose={closeMenu}
-                                onAction={(a) => onMenuAction(project, a)}
-                              />
-                            ) : null}
-                          </div>
-                        </div>
-
-                        <div className="mt-4">
-                          <ProgressBar
-                            value={project.progress}
-                            meta={`${project.progress}% · ${project.currentTask}`}
-                          />
-                        </div>
-
-                        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted">
-                          <span
-                            className={
-                              overdue ? "font-medium text-danger" : ""
-                            }
-                          >
-                            {project.deadlineLabel}
-                          </span>
-                          <span className="text-ink">
-                            {formatMoney(project.value)}
-                          </span>
-                          <span>
-                            <span className={moneyToneClass("paid")}>
-                              {formatMoney(project.paid)}
-                            </span>{" "}
-                            paid
-                          </span>
-                        </div>
-
-                        <div className="mt-4 flex items-center justify-end gap-2 border-t border-border pt-4">
+                <ul className="grid gap-2.5 lg:grid-cols-2">
+                  {filtered.map((project) => (
+                    <ProjectCard
+                      key={project.id}
+                      project={project}
+                      compact
+                      onOpen={() =>
+                        router.push(`/projects/${project.slug}`)
+                      }
+                      onCopyLink={() => void copyPortalLink(project)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setMenuId(project.id);
+                        setMenuPos({ x: e.clientX, y: e.clientY });
+                      }}
+                      menu={
+                        <>
                           <button
                             type="button"
-                            aria-label="Copy portal link"
+                            aria-label="Project actions"
+                            aria-expanded={
+                              menuId === project.id && !menuPos
+                            }
                             onClick={(e) => {
                               e.stopPropagation();
-                              void copyPortalLink(project);
+                              if (menuId === project.id && !menuPos) {
+                                closeMenu();
+                              } else {
+                                setMenuId(project.id);
+                                setMenuPos(null);
+                              }
                             }}
-                            className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-[8px] px-3 text-sm font-medium text-muted hover-soft"
+                            data-hover-stop
+                            className="flex size-8 cursor-pointer items-center justify-center rounded-[8px] text-muted hover-soft"
                           >
-                            <Copy className="size-3.5" strokeWidth={1.75} />
-                            Copy link
+                            <MoreHorizontal
+                              className="size-4"
+                              strokeWidth={1.75}
+                            />
                           </button>
-                          <Link
-                            href={`/projects/${project.slug}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-flex h-9 cursor-pointer items-center rounded-[8px] btn-primary px-3.5 text-sm font-medium"
-                          >
-                            Open
-                          </Link>
-                        </div>
-                      </li>
-                    );
-                  })}
+                          {menuId === project.id && !menuPos ? (
+                            <ProjectRowMenu
+                              open
+                              showComplete={
+                                project.status !== "completed"
+                              }
+                              onClose={closeMenu}
+                              onAction={(a) => onMenuAction(project, a)}
+                            />
+                          ) : null}
+                        </>
+                      }
+                    />
+                  ))}
                 </ul>
               )}
             </>

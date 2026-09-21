@@ -135,7 +135,7 @@ export default function BillingPanel() {
               <button
                 type="button"
                 onClick={() => setUpgradeOpen(true)}
-                className="inline-flex h-10 cursor-pointer items-center rounded-xl btn-accent px-4 text-sm font-semibold"
+                className="inline-flex h-10 cursor-pointer items-center rounded-[8px] btn-accent px-4 text-sm font-semibold"
               >
                 Upgrade to Pro
               </button>
@@ -242,7 +242,7 @@ export default function BillingPanel() {
               <button
                 type="button"
                 onClick={() => setUpgradeOpen(true)}
-                className="inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-2xl btn-accent px-4 text-sm font-semibold"
+                className="inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-[8px] btn-accent px-4 text-sm font-semibold"
               >
                 Upgrade to Pro
               </button>

@@ -1,7 +1,8 @@
 "use client";
 
 import { X } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import {
   usePopupEscape,
   usePopupTransition,
@@ -53,6 +54,17 @@ export default function Popup({
 }: PopupProps) {
   const { visible, closing } = usePopupTransition(open);
   usePopupEscape(open && !closing, onClose);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(visible && !closing, panelRef);
+
+  useEffect(() => {
+    if (!visible) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [visible]);
 
   if (!visible) return null;
 
@@ -66,6 +78,7 @@ export default function Popup({
       <button
         type="button"
         aria-label="Close"
+        tabIndex={-1}
         className={`absolute inset-0 bg-ink/40 ${
           closing ? "animate-popup-backdrop-out" : "animate-popup-backdrop"
         }`}
@@ -73,6 +86,7 @@ export default function Popup({
       />
 
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}

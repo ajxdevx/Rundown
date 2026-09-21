@@ -32,7 +32,7 @@ export default function LoginPage() {
         setErrors({ [result.field ?? "form"]: result.error });
         return;
       }
-      router.push("/");
+      router.push("/dashboard");
     } catch {
       setErrors({ form: "Something went wrong. Please try again." });
     } finally {

@@ -38,7 +38,7 @@ export type Client = {
   outstanding: number;
 };
 
-/** No seed clients — only user-created clients from the store. */
+/** No static seed here — live seed lives in `seedWorkspace` + clientsStore. */
 export const seedClients: Client[] = [];
 
 export function clientStats(client: Client) {

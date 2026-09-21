@@ -50,10 +50,10 @@ export function StatusBadge({
 }: StatusBadgeProps) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium capitalize ${toneClass[tone]} ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold tracking-tight ${toneClass[tone]} ${className}`}
     >
       {Icon ? (
-        <Icon className="size-3 shrink-0" strokeWidth={2} aria-hidden />
+        <Icon className="size-3 shrink-0" strokeWidth={2.25} aria-hidden />
       ) : dot ? (
         <span className="size-1.5 shrink-0 rounded-full bg-current opacity-80" />
       ) : null}
@@ -127,7 +127,7 @@ export function paymentStatusIcon(status: string): LucideIcon {
       return CircleDollarSign;
     case "pending":
     case "due":
-      return Clock;
+      return CircleDollarSign;
     case "overdue":
       return CircleAlert;
     case "processing":

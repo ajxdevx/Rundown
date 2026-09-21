@@ -1,6 +1,7 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
+import { PROJECTS_FILTER_WIDTHS } from "@/lib/projectsView";
 
 /** Skeleton fill — no default radius; pass the exact live radius. */
 function Bone({
@@ -46,7 +47,7 @@ function GhostControl({
   className = "",
   radiusClass = "rounded-[8px]",
 }: {
-  children: string;
+  children: ReactNode;
   className?: string;
   radiusClass?: string;
 }) {
@@ -54,7 +55,10 @@ function GhostControl({
     <span
       className={`relative inline-flex items-center justify-center ${className}`}
     >
-      <span className="invisible whitespace-nowrap" aria-hidden>
+      <span
+        className="invisible inline-flex items-center gap-1.5 whitespace-nowrap"
+        aria-hidden
+      >
         {children}
       </span>
       <span
@@ -65,18 +69,136 @@ function GhostControl({
   );
 }
 
-const FILTER_LABELS = [
-  "All",
-  "Active",
-  "Draft",
-  "On Hold",
-  "Completed",
-  "Archived",
-] as const;
+/** Matches MenuDropdown / MultiSelect trigger shell exactly. */
+function GhostMenuButton({
+  label,
+  widthLabel,
+}: {
+  label: string;
+  widthLabel: string;
+}) {
+  return (
+    <div className="relative shrink-0">
+      <span className="relative inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-border bg-card px-3 text-sm font-medium">
+        <span className="inline-grid text-left">
+          <span
+            className="invisible col-start-1 row-start-1 whitespace-nowrap"
+            aria-hidden
+          >
+            {widthLabel}
+          </span>
+          <span
+            className="invisible col-start-1 row-start-1 whitespace-nowrap"
+            aria-hidden
+          >
+            {label}
+          </span>
+        </span>
+        <span className="invisible size-3.5 shrink-0" aria-hidden />
+        <span
+          className="auth-skeleton absolute inset-0 rounded-[8px]"
+          aria-hidden
+        />
+      </span>
+    </div>
+  );
+}
+
+/** Compact project card bone — mirrors ProjectCard compact layout. */
+function ProjectCardSkeleton({
+  name,
+  client,
+  meta,
+  deadline,
+  funds,
+}: {
+  name: string;
+  client: string;
+  meta: string;
+  deadline: string;
+  funds: string;
+}) {
+  return (
+    <li className="card-surface flex flex-col p-3.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-sm font-semibold text-ink">
+            <GhostText>{name}</GhostText>
+          </h3>
+          <p className="mt-0.5 flex min-w-0 items-baseline gap-1.5 truncate text-xs">
+            <span className="shrink-0 font-medium text-muted-soft">
+              <GhostText>Client:</GhostText>
+            </span>
+            <span className="truncate text-muted">
+              <GhostText>{client}</GhostText>
+            </span>
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <GhostControl
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-semibold"
+              radiusClass="rounded-md"
+            >
+              Active
+            </GhostControl>
+            <GhostControl
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-semibold"
+              radiusClass="rounded-md"
+            >
+              Unpaid
+            </GhostControl>
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <Bone className="size-8 shrink-0 rounded-[8px]" />
+          <span className="inline-flex items-center gap-1.5 text-[11px]">
+            <span className="shrink-0 font-medium text-muted-soft">
+              <GhostText>Due:</GhostText>
+            </span>
+            <GhostControl
+              className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-semibold"
+              radiusClass="rounded-md"
+            >
+              {deadline}
+            </GhostControl>
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-2.5">
+        <div className="mb-1.5 flex items-center justify-between gap-3">
+          <p className="min-w-0 truncate text-xs text-muted">
+            <GhostText>{meta}</GhostText>
+          </p>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-surface">
+          <Bone className="h-full w-2/3 rounded-full" />
+        </div>
+      </div>
+
+      <div className="mt-2.5 text-xs">
+        <GhostText>{funds}</GhostText>
+      </div>
+
+      <div className="mt-2.5 flex items-center justify-between gap-3 border-t border-border pt-2.5">
+        <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-soft">
+          <GhostText>Client portal</GhostText>
+        </p>
+        <div className="flex shrink-0 items-center gap-2">
+          <GhostControl className="inline-flex h-8 gap-1.5 px-3 text-xs font-medium">
+            Copy link
+          </GhostControl>
+          <GhostControl className="inline-flex h-8 px-3.5 text-xs font-medium">
+            Open
+          </GhostControl>
+        </div>
+      </div>
+    </li>
+  );
+}
 
 export function DashboardSkeleton() {
   return (
-    <div className="w-full flex-1 px-4 py-6 sm:px-6 md:px-8 md:py-8">
+    <div className="flex w-full flex-1 flex-col px-4 py-6 sm:px-6 md:px-8 md:py-8">
       {/* Header */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -89,19 +211,50 @@ export function DashboardSkeleton() {
             </GhostText>
           </p>
         </div>
-        <GhostControl className="inline-flex h-11 shrink-0 self-start px-4 text-sm font-semibold sm:self-auto">
-          + New Project
-        </GhostControl>
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <span className="relative inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-[8px] px-4 text-sm font-semibold">
+            <span className="invisible inline-flex items-center gap-2 whitespace-nowrap">
+              <span className="size-4 shrink-0" aria-hidden />
+              New Project
+            </span>
+            <span
+              className="auth-skeleton absolute inset-0 rounded-[8px]"
+              aria-hidden
+            />
+          </span>
+          <span className="relative inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-[8px] px-4 text-sm font-semibold">
+            <span className="invisible inline-flex items-center gap-2 whitespace-nowrap">
+              <span className="size-4 shrink-0" aria-hidden />
+              Add a client
+            </span>
+            <span
+              className="auth-skeleton absolute inset-0 rounded-[8px]"
+              aria-hidden
+            />
+          </span>
+        </div>
       </div>
 
-      {/* Summary */}
+      {/* Summary — matches dashboardStats mock */}
       <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {(
           [
-            { label: "Active Projects", value: "4", support: "2 due this week" },
-            { label: "Total Clients", value: "12", support: "3 active this month" },
-            { label: "Outstanding", value: "$2,450", support: "4 invoices" },
-            { label: "Collected", value: "$8,720", support: "This month" },
+            {
+              label: "Active Projects",
+              value: "4",
+              support: "0 due this week",
+            },
+            { label: "Total Clients", value: "3", support: "3 total" },
+            {
+              label: "Outstanding",
+              value: "$4,350",
+              support: "3 invoices",
+            },
+            {
+              label: "Collected",
+              value: "$2,200",
+              support: "This month",
+            },
           ] as const
         ).map((stat) => (
           <div key={stat.label} className="card-surface block px-5 py-4">
@@ -118,130 +271,29 @@ export function DashboardSkeleton() {
         ))}
       </div>
 
-      {/* Active Projects */}
-      <div className="mb-8">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <h2 className="section-title">
-              <GhostText>Active Projects</GhostText>
-            </h2>
-            <span className="text-sm font-medium text-muted">
-              <GhostText>View all</GhostText>
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex flex-wrap gap-1.5">
-              {FILTER_LABELS.map((label) => (
-                <GhostControl
-                  key={label}
-                  className="h-8 px-3 text-xs font-medium"
-                >
-                  {label}
-                </GhostControl>
-              ))}
+      {/* Projects + Payments — same xl grid as live */}
+      <div className="mb-8 flex flex-col gap-6 xl:grid xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.9fr)] xl:grid-rows-[auto_1fr] xl:gap-x-6 xl:gap-y-4">
+        <div className="min-w-0 xl:col-start-1 xl:row-start-1">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3">
+              <h2 className="section-title">
+                <GhostText>Active Projects</GhostText>
+              </h2>
+              <span className="text-sm font-medium text-muted">
+                <GhostText>View all</GhostText>
+              </span>
             </div>
-            <GhostControl className="inline-flex h-9 items-center gap-1.5 px-3 text-sm font-medium">
-              Sort: Recently updated
-            </GhostControl>
+            <p className="mt-1 text-sm text-muted">
+              <GhostText>
+                Your live work — progress, payments, and what&apos;s due
+                next.
+              </GhostText>
+            </p>
           </div>
         </div>
 
-        <ul className="grid gap-3 lg:grid-cols-2">
-          {(
-            [
-              {
-                name: "Website Redesign",
-                client: "Acme Studio",
-                meta: "72% · Homepage development",
-                deadline: "Due in 5 days",
-                value: "$2,400",
-                paid: "$1,200 paid",
-              },
-              {
-                name: "Brand Identity",
-                client: "Lumen Health",
-                meta: "45% · Logo refinements",
-                deadline: "Due in 2 days",
-                value: "$3,200",
-                paid: "$1,600 paid",
-              },
-              {
-                name: "Product UI",
-                client: "Atlas CRM",
-                meta: "91% · Handoff documentation",
-                deadline: "Due tomorrow",
-                value: "$6,500",
-                paid: "$6,500 paid",
-              },
-            ] as const
-          ).map((project) => (
-            <li
-              key={project.name}
-              className="card-surface flex flex-col p-5"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-[15px] font-semibold text-ink">
-                      <GhostText>{project.name}</GhostText>
-                    </h3>
-                    <GhostControl
-                      className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium"
-                      radiusClass="rounded-md"
-                    >
-                      Active
-                    </GhostControl>
-                    <GhostControl
-                      className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium"
-                      radiusClass="rounded-md"
-                    >
-                      Due
-                    </GhostControl>
-                  </div>
-                  <p className="mt-1 text-sm text-muted">
-                    <GhostText>{project.client}</GhostText>
-                  </p>
-                </div>
-                <Bone className="size-8 shrink-0 rounded-[8px]" />
-              </div>
-
-              <div className="mt-4">
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <span />
-                  <p className="text-sm text-muted">
-                    <GhostText>{project.meta}</GhostText>
-                  </p>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-surface">
-                  <Bone className="h-full w-2/3 rounded-full" />
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted">
-                <GhostText>{project.deadline}</GhostText>
-                <span className="text-ink">
-                  <GhostText>{project.value}</GhostText>
-                </span>
-                <GhostText>{project.paid}</GhostText>
-              </div>
-
-              <div className="mt-4 flex items-center justify-end gap-2 border-t border-border pt-4">
-                <GhostControl className="inline-flex h-9 gap-1.5 px-3 text-sm font-medium">
-                  Copy link
-                </GhostControl>
-                <GhostControl className="inline-flex h-9 px-3.5 text-sm font-medium">
-                  Open
-                </GhostControl>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Payments + Needs Attention */}
-      <div className="mb-8 grid gap-6 lg:grid-cols-2">
-        <div className="min-w-0">
-          <div className="mb-4">
+        <div className="order-3 min-w-0 xl:order-none xl:col-start-2 xl:row-start-1">
+          <div className="mb-4 xl:mb-0">
             <div className="flex items-center gap-3">
               <h2 className="section-title">
                 <GhostText>Payments</GhostText>
@@ -256,17 +308,39 @@ export function DashboardSkeleton() {
               </GhostText>
             </p>
           </div>
-          <div className="card-surface overflow-hidden">
+        </div>
+
+        <div className="min-w-0 xl:col-start-1 xl:row-start-2">
+          <ul className="grid h-full content-start gap-2.5">
+            <ProjectCardSkeleton
+              name="Website Redesign"
+              client="Acme Studio"
+              meta="72%"
+              deadline="In 5 days"
+              funds="$4,800 · $2,400 paid · $2,400 remaining"
+            />
+            <ProjectCardSkeleton
+              name="Brand Identity"
+              client="Lumen Health"
+              meta="45%"
+              deadline="In 2 days"
+              funds="$3,200 · $3,200 paid · $0 remaining"
+            />
+          </ul>
+        </div>
+
+        <div className="order-4 flex min-h-0 min-w-0 flex-col xl:order-none xl:col-start-2 xl:row-start-2">
+          <div className="card-surface flex h-full min-h-0 flex-1 flex-col overflow-hidden">
             <div className="grid grid-cols-2 divide-x divide-border border-b border-border">
               <div className="px-5 py-4">
                 <p className="text-xs font-medium text-muted">
                   <GhostText>Outstanding</GhostText>
                 </p>
                 <p className="mt-1.5 text-xl font-semibold tracking-tight text-ink">
-                  <GhostText>$2,450</GhostText>
+                  <GhostText>$4,350</GhostText>
                 </p>
                 <p className="mt-1 text-xs text-muted-soft">
-                  <GhostText>Across 4 invoices</GhostText>
+                  <GhostText>Across 3 invoices</GhostText>
                 </p>
               </div>
               <div className="px-5 py-4">
@@ -274,7 +348,7 @@ export function DashboardSkeleton() {
                   <GhostText>Collected</GhostText>
                 </p>
                 <p className="mt-1.5 text-xl font-semibold tracking-tight text-ink">
-                  <GhostText>$8,720</GhostText>
+                  <GhostText>$2,200</GhostText>
                 </p>
                 <p className="mt-1 text-xs text-muted-soft">
                   <GhostText>This month</GhostText>
@@ -285,24 +359,28 @@ export function DashboardSkeleton() {
               {(
                 [
                   {
-                    title: "INV-004 — Website Redesign",
-                    detail: "Acme Studio · $750",
-                    date: "Due Sep 18",
+                    title: "INV-014 — Website Redesign",
+                    detail: "Acme Studio · $1,200",
+                    date: "Due Sep 24",
+                    badge: "Unpaid",
                   },
                   {
-                    title: "INV-003 — Brand Identity",
-                    detail: "Nova Labs · $1,200",
-                    date: "Paid Sep 15",
+                    title: "INV-015 — Product UI",
+                    detail: "Verde Capital · $2,100",
+                    date: "Due Oct 1",
+                    badge: "Unpaid",
                   },
                   {
-                    title: "INV-002 — Landing Page",
-                    detail: "Sarah Johnson · $500",
-                    date: "Paid Sep 12",
+                    title: "INV-016 — Launch Kit",
+                    detail: "Verde Capital · $1,050",
+                    date: "Due Sep 19",
+                    badge: "Past due",
                   },
                   {
-                    title: "INV-001 — Pitch Deck",
-                    detail: "Verde Capital · $1,100",
-                    date: "Due Sep 5",
+                    title: "INV-011 — Product UI",
+                    detail: "Verde Capital · $2,200",
+                    date: "Paid Sep 18",
+                    badge: "Paid",
                   },
                 ] as const
               ).map((row) => (
@@ -316,10 +394,10 @@ export function DashboardSkeleton() {
                         <GhostText>{row.title}</GhostText>
                       </p>
                       <GhostControl
-                        className="px-2 py-0.5 text-xs font-medium"
+                        className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-semibold"
                         radiusClass="rounded-md"
                       >
-                        Due
+                        {row.badge}
                       </GhostControl>
                     </div>
                     <p className="mt-1 text-xs text-muted">
@@ -335,8 +413,87 @@ export function DashboardSkeleton() {
             </ul>
           </div>
         </div>
+      </div>
 
-        <div className="min-w-0">
+      {/* Recent Activity + Needs Attention */}
+      <div className="mb-8 grid items-stretch gap-6 lg:grid-cols-2">
+        <div className="flex min-h-0 min-w-0 flex-col">
+          <div className="mb-4">
+            <div className="flex items-center gap-3">
+              <h2 className="section-title">
+                <GhostText>Recent Activity</GhostText>
+              </h2>
+              <span className="text-sm font-medium text-muted">
+                <GhostText>View all</GhostText>
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-muted">
+              <GhostText>
+                See what&apos;s been happening across your workspace.
+              </GhostText>
+            </p>
+          </div>
+          <div className="card-surface flex min-h-0 flex-1 flex-col overflow-hidden">
+            <ul>
+              {(
+                [
+                  {
+                    title: "Sarah viewed Website Redesign",
+                    related: "Client Portal",
+                    time: "12 min ago",
+                  },
+                  {
+                    title: "Sarah sent a message",
+                    related: "Website Redesign",
+                    time: "18 min ago",
+                  },
+                  {
+                    title: "You completed Homepage Design",
+                    related: "Website Redesign",
+                    time: "45 min ago",
+                  },
+                  {
+                    title: "Invoice INV-011 was paid",
+                    related: "Product UI · Verde Capital",
+                    time: "Yesterday",
+                  },
+                  {
+                    title: "Maya left feedback on logo refinements",
+                    related: "Brand Identity",
+                    time: "Yesterday",
+                  },
+                  {
+                    title: "Project created — Launch Kit",
+                    related: "Verde Capital",
+                    time: "3 days ago",
+                  },
+                ] as const
+              ).map((item) => (
+                <li
+                  key={item.title}
+                  className="border-b border-border last:border-0"
+                >
+                  <div className="flex items-start gap-3 px-4 py-3 sm:px-5">
+                    <Bone className="mt-0.5 size-8 shrink-0 rounded-[8px]" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-ink">
+                        <GhostText>{item.title}</GhostText>
+                      </p>
+                      <p className="mt-1 text-xs text-muted">
+                        <GhostText>{item.related}</GhostText>
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-soft">
+                      <GhostText>{item.time}</GhostText>
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="flex min-h-0 min-w-0 flex-col">
           <div className="mb-4">
             <div className="flex items-center gap-3">
               <h2 className="section-title">
@@ -350,41 +507,41 @@ export function DashboardSkeleton() {
               <GhostText>A few things may need your attention.</GhostText>
             </p>
           </div>
-          <div className="card-surface overflow-hidden">
-            <ul>
+          <div className="card-surface flex min-h-0 flex-1 flex-col overflow-hidden">
+            <ul className="flex flex-1 flex-col">
               {(
                 [
                   {
-                    title: "Sarah sent you a message",
-                    context: "Website Redesign · Acme Studio",
-                    time: "12 min ago",
-                    action: "View Message",
+                    title: "Sarah is waiting on a reply",
+                    context: "Website Redesign · Messages",
+                    time: "18 min ago",
+                    action: "Reply",
                   },
                   {
-                    title: "Client approval is needed",
-                    context: "Brand Identity · Acme Studio",
-                    time: "1 hour ago",
-                    action: "Open Project",
+                    title: "Homepage design needs approval",
+                    context: "Website Redesign · Tasks",
+                    time: "45 min ago",
+                    action: "Review",
                   },
                   {
-                    title: "Waiting for client input",
-                    context: "Landing Page · Sarah Johnson",
+                    title: "INV-016 is overdue",
+                    context: "Verde Capital · Launch Kit · $1,050",
+                    time: "2 hr ago",
+                    action: "View invoice",
+                  },
+                  {
+                    title: "Maya left feedback on logo refinements",
+                    context: "Brand Identity · Files",
                     time: "Yesterday",
-                    action: "Open Project",
-                  },
-                  {
-                    title: "Client requested changes",
-                    context: "Website Redesign · Acme Studio",
-                    time: "Yesterday",
-                    action: "View Request",
+                    action: "Open",
                   },
                 ] as const
               ).map((item) => (
                 <li
                   key={item.title}
-                  className="border-b border-border last:border-0"
+                  className="flex flex-1 border-b border-border last:border-0"
                 >
-                  <div className="flex items-start gap-3 px-5 py-4">
+                  <div className="flex w-full items-start gap-3 px-5 py-4">
                     <Bone className="mt-0.5 size-8 shrink-0 rounded-[8px]" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-ink">
@@ -405,83 +562,6 @@ export function DashboardSkeleton() {
               ))}
             </ul>
           </div>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="mb-8">
-        <div className="mb-4">
-          <div className="flex items-center gap-3">
-            <h2 className="section-title">
-              <GhostText>Recent Activity</GhostText>
-            </h2>
-            <span className="text-sm font-medium text-muted">
-              <GhostText>View all</GhostText>
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-muted">
-            <GhostText>
-              See what&apos;s been happening across your workspace.
-            </GhostText>
-          </p>
-        </div>
-        <div className="card-surface overflow-hidden">
-          <ul>
-            {(
-              [
-                {
-                  title: "Sarah viewed Website Redesign",
-                  related: "Acme Studio · Portal",
-                  time: "12 min ago",
-                },
-                {
-                  title: "John downloaded Final Design.pdf",
-                  related: "Brand Identity · Nova Labs",
-                  time: "1 hour ago",
-                },
-                {
-                  title: "Invoice INV-003 was paid",
-                  related: "Acme Studio · Website Redesign",
-                  time: "3 hours ago",
-                },
-                {
-                  title: 'You completed "Homepage Design"',
-                  related: "Website Redesign",
-                  time: "Yesterday",
-                },
-                {
-                  title: "Sarah sent a message",
-                  related: "Website Redesign · Acme Studio",
-                  time: "Yesterday",
-                },
-                {
-                  title: "Project created — Brand Identity",
-                  related: "Nova Labs",
-                  time: "3 days ago",
-                },
-              ] as const
-            ).map((item) => (
-              <li
-                key={item.title}
-                className="border-b border-border last:border-0"
-              >
-                <div className="flex items-start gap-3 px-5 py-4">
-                  <Bone className="mt-0.5 size-8 shrink-0 rounded-[8px]" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-ink">
-                      <GhostText>{item.title}</GhostText>
-                    </p>
-                    <p className="mt-1 text-xs text-muted">
-                      <GhostText>{item.related}</GhostText>
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-xs text-muted-soft">
-                    <GhostText>{item.time}</GhostText>
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
         </div>
       </div>
 
@@ -541,181 +621,238 @@ export function ProjectRowsSkeleton() {
     {
       name: "Website Redesign",
       client: "Acme Studio",
-      meta: "72% · Homepage development",
-      deadline: "Due in 5 days",
-      value: "$2,400",
-      paid: "$1,200 paid",
+      meta: "72%",
+      deadline: "Today",
+      funds: "$4,800 · $2,400 paid · $2,400 remaining",
     },
     {
       name: "Brand Identity",
       client: "Lumen Health",
-      meta: "45% · Logo refinements",
-      deadline: "Due in 2 days",
-      value: "$3,200",
-      paid: "$1,600 paid",
+      meta: "45%",
+      deadline: "In 2 days",
+      funds: "$3,200 · $3,200 paid · $0 remaining",
     },
     {
       name: "Product UI",
-      client: "Atlas CRM",
-      meta: "91% · Handoff documentation",
-      deadline: "Due tomorrow",
-      value: "$6,500",
-      paid: "$6,500 paid",
+      client: "Verde Capital",
+      meta: "91%",
+      deadline: "Tomorrow",
+      funds: "$6,500 · $4,400 paid · $2,100 remaining",
     },
     {
-      name: "Marketing Site",
-      client: "Northwind Co",
-      meta: "30% · Content drafting",
-      deadline: "Due in 12 days",
-      value: "$1,800",
-      paid: "$900 paid",
+      name: "Launch Kit",
+      client: "Verde Capital",
+      meta: "30%",
+      deadline: "3 days late",
+      funds: "$2,100 · $0 paid · $2,100 remaining",
+    },
+    {
+      name: "Newsletter Templates",
+      client: "Acme Studio",
+      meta: "10%",
+      deadline: "No deadline",
+      funds: "$900 · $0 paid · $900 remaining",
+    },
+    {
+      name: "Pitch Deck",
+      client: "Lumen Health",
+      meta: "100%",
+      deadline: "No deadline",
+      funds: "$1,800 · $1,800 paid · $0 remaining",
+    },
+    {
+      name: "Social Pack",
+      client: "Verde Capital",
+      meta: "100%",
+      deadline: "No deadline",
+      funds: "$750 · $750 paid · $0 remaining",
+    },
+    {
+      name: "Case Study Site",
+      client: "Acme Studio",
+      meta: "58%",
+      deadline: "In 9 days",
+      funds: "$2,400 · $800 paid · $1,600 remaining",
     },
   ] as const;
 
   return (
-    <ul className="grid gap-3 lg:grid-cols-2">
+    <ul className="grid gap-2.5 lg:grid-cols-2">
       {projects.map((project) => (
-        <li key={project.name} className="card-surface flex flex-col p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-[15px] font-semibold text-ink">
-                  <GhostText>{project.name}</GhostText>
-                </h3>
-                <GhostControl
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium"
-                  radiusClass="rounded-md"
-                >
-                  Active
-                </GhostControl>
-                <GhostControl
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium"
-                  radiusClass="rounded-md"
-                >
-                  Due
-                </GhostControl>
-              </div>
-              <p className="mt-1 text-sm text-muted">
-                <GhostText>{project.client}</GhostText>
-              </p>
-            </div>
-            <Bone className="size-8 shrink-0 rounded-[8px]" />
-          </div>
-
-          <div className="mt-4">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <span />
-              <p className="text-sm text-muted">
-                <GhostText>{project.meta}</GhostText>
-              </p>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-surface">
-              <Bone className="h-full w-2/3 rounded-full" />
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted">
-            <GhostText>{project.deadline}</GhostText>
-            <span className="text-ink">
-              <GhostText>{project.value}</GhostText>
-            </span>
-            <GhostText>{project.paid}</GhostText>
-          </div>
-
-          <div className="mt-4 flex items-center justify-end gap-2 border-t border-border pt-4">
-            <GhostControl className="inline-flex h-9 gap-1.5 px-3 text-sm font-medium">
-              Copy link
-            </GhostControl>
-            <GhostControl className="inline-flex h-9 px-3.5 text-sm font-medium">
-              Open
-            </GhostControl>
-          </div>
-        </li>
+        <ProjectCardSkeleton key={project.name} {...project} />
       ))}
     </ul>
   );
 }
 
-export function ProjectListSkeleton() {
-  const cols =
-    "lg:grid-cols-[minmax(0,1.5fr)_9rem_5.5rem_7.5rem_7.5rem_minmax(5rem,1fr)_14.5rem]";
+/** Same column track as ProjectsPage LIST_COLS. */
+const PROJECT_LIST_COLS =
+  "lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_9rem_6.5rem_6.5rem_4.75rem_4.75rem_5.25rem_4.5rem_14.5rem]";
 
+export function ProjectListSkeleton() {
   const rows = [
     {
       name: "Website Redesign",
       client: "Acme Studio",
-      deadline: "Due in 5 days",
-      value: "$2,400",
-      payment: "Due",
+      deadline: "Today",
       status: "Active",
+      payment: "Unpaid",
+      value: "$4,800",
+      paid: "$2,400",
+      remaining: "$2,400",
       progress: "72%",
     },
     {
       name: "Brand Identity",
       client: "Lumen Health",
-      deadline: "Due in 2 days",
-      value: "$3,200",
-      payment: "Paid",
+      deadline: "In 2 days",
       status: "Active",
+      payment: "Paid",
+      value: "$3,200",
+      paid: "$3,200",
+      remaining: "$0",
       progress: "45%",
     },
     {
       name: "Product UI",
-      client: "Atlas CRM",
-      deadline: "Due tomorrow",
+      client: "Verde Capital",
+      deadline: "Tomorrow",
+      status: "Active",
+      payment: "Partial",
       value: "$6,500",
-      payment: "Overdue",
-      status: "On Hold",
+      paid: "$4,400",
+      remaining: "$2,100",
       progress: "91%",
     },
     {
-      name: "Marketing Site",
-      client: "Northwind Co",
-      deadline: "Due in 12 days",
-      value: "$1,800",
-      payment: "Processing",
-      status: "Draft",
+      name: "Launch Kit",
+      client: "Verde Capital",
+      deadline: "3 days late",
+      status: "Active",
+      payment: "Overdue",
+      value: "$2,100",
+      paid: "$0",
+      remaining: "$2,100",
       progress: "30%",
     },
     {
-      name: "App Redesign",
-      client: "Orbit Labs",
-      deadline: "Due in 8 days",
-      value: "$4,100",
-      payment: "Due",
+      name: "Newsletter Templates",
+      client: "Acme Studio",
+      deadline: "No deadline",
+      status: "Draft",
+      payment: "Unpaid",
+      value: "$900",
+      paid: "$0",
+      remaining: "$900",
+      progress: "10%",
+    },
+    {
+      name: "Pitch Deck",
+      client: "Lumen Health",
+      deadline: "No deadline",
+      status: "Completed",
+      payment: "Paid",
+      value: "$1,800",
+      paid: "$1,800",
+      remaining: "$0",
+      progress: "100%",
+    },
+    {
+      name: "Social Pack",
+      client: "Verde Capital",
+      deadline: "No deadline",
+      status: "Archived",
+      payment: "Paid",
+      value: "$750",
+      paid: "$750",
+      remaining: "$0",
+      progress: "100%",
+    },
+    {
+      name: "Case Study Site",
+      client: "Acme Studio",
+      deadline: "In 9 days",
       status: "Active",
+      payment: "Unpaid",
+      value: "$2,400",
+      paid: "$800",
+      remaining: "$1,600",
       progress: "58%",
     },
     {
-      name: "Launch Kit",
-      client: "Harbor Co",
-      deadline: "Due in 3 days",
-      value: "$2,950",
+      name: "Onboarding Deck",
+      client: "Lumen Health",
+      deadline: "In 5 days",
+      status: "Active",
       payment: "Paid",
-      status: "Completed",
-      progress: "100%",
+      value: "$1,200",
+      paid: "$1,200",
+      remaining: "$0",
+      progress: "64%",
+    },
+    {
+      name: "Investor Update",
+      client: "Verde Capital",
+      deadline: "Tomorrow",
+      status: "On Hold",
+      payment: "Unpaid",
+      value: "$1,500",
+      paid: "$0",
+      remaining: "$1,500",
+      progress: "22%",
+    },
+    {
+      name: "Help Center",
+      client: "Acme Studio",
+      deadline: "In 14 days",
+      status: "Draft",
+      payment: "Unpaid",
+      value: "$3,600",
+      paid: "$0",
+      remaining: "$3,600",
+      progress: "8%",
+    },
+    {
+      name: "Q4 Campaign",
+      client: "Lumen Health",
+      deadline: "In 11 days",
+      status: "Active",
+      payment: "Partial",
+      value: "$2,800",
+      paid: "$1,000",
+      remaining: "$1,800",
+      progress: "41%",
     },
   ] as const;
 
   return (
     <div className="card-surface overflow-hidden">
       <div
-        className={`hidden items-center border-b border-border bg-surface/50 px-5 py-2.5 text-xs font-medium text-muted lg:grid lg:gap-4 ${cols}`}
+        className={`hidden items-center border-b border-border bg-surface/50 px-5 py-2.5 text-xs font-medium text-muted lg:grid lg:gap-4 ${PROJECT_LIST_COLS}`}
       >
         <span>
           <GhostText>Project</GhostText>
         </span>
         <span>
-          <GhostText>Deadline</GhostText>
+          <GhostText>Client</GhostText>
         </span>
         <span>
-          <GhostText>Value</GhostText>
+          <GhostText>Due</GhostText>
+        </span>
+        <span>
+          <GhostText>Status</GhostText>
         </span>
         <span>
           <GhostText>Payment</GhostText>
         </span>
         <span>
-          <GhostText>Status</GhostText>
+          <GhostText>Value</GhostText>
+        </span>
+        <span>
+          <GhostText>Paid</GhostText>
+        </span>
+        <span>
+          <GhostText>Remaining</GhostText>
         </span>
         <span>
           <GhostText>Progress</GhostText>
@@ -726,57 +863,69 @@ export function ProjectListSkeleton() {
         {rows.map((row) => (
           <li
             key={row.name}
-            className={`grid items-center gap-3 border-b border-border px-5 py-4 last:border-0 lg:gap-4 ${cols}`}
+            className="border-b border-border last:border-0"
           >
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-ink">
-                <GhostText>{row.name}</GhostText>
-              </p>
-              <p className="mt-0.5 truncate text-xs text-muted">
-                <GhostText>{row.client}</GhostText>
-              </p>
-            </div>
-            <p className="min-w-0 truncate text-xs text-muted">
-              <GhostText>{row.deadline}</GhostText>
-            </p>
-            <p className="min-w-0 truncate text-sm font-medium text-ink">
-              <GhostText>{row.value}</GhostText>
-            </p>
-            <div className="min-w-0">
-              <GhostControl
-                className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium"
-                radiusClass="rounded-md"
-              >
-                {row.payment}
-              </GhostControl>
-            </div>
-            <div className="min-w-0">
-              <GhostControl
-                className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium"
-                radiusClass="rounded-md"
-              >
-                {row.status}
-              </GhostControl>
-            </div>
-            <div className="min-w-0">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <span />
-                <p className="text-sm text-muted">
-                  <GhostText>{row.progress}</GhostText>
+            <div
+              className={`grid items-center gap-3 px-5 py-4 lg:gap-4 ${PROJECT_LIST_COLS}`}
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-ink">
+                  <GhostText>{row.name}</GhostText>
                 </p>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-surface">
-                <Bone className="h-full w-2/3 rounded-full" />
+              <p className="min-w-0 truncate text-sm text-muted">
+                <GhostText>{row.client}</GhostText>
+              </p>
+              <GhostControl
+                className="inline-flex w-fit max-w-full justify-self-start items-center truncate px-2 py-1 text-[11px] font-semibold"
+                radiusClass="rounded-md"
+              >
+                {row.deadline}
+              </GhostControl>
+              <div className="min-w-0">
+                <GhostControl
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-semibold"
+                  radiusClass="rounded-md"
+                >
+                  {row.status}
+                </GhostControl>
               </div>
-            </div>
-            <div className="relative flex w-full flex-nowrap items-center justify-end gap-2">
-              <GhostControl className="inline-flex h-9 shrink-0 gap-1.5 px-3 text-sm font-medium">
-                Copy link
-              </GhostControl>
-              <GhostControl className="inline-flex h-9 shrink-0 px-3.5 text-sm font-medium">
-                Open
-              </GhostControl>
-              <Bone className="size-8 shrink-0 rounded-[8px]" />
+              <div className="min-w-0">
+                <GhostControl
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-semibold"
+                  radiusClass="rounded-md"
+                >
+                  {row.payment}
+                </GhostControl>
+              </div>
+              <p className="min-w-0 truncate text-sm font-medium text-ink">
+                <GhostText>{row.value}</GhostText>
+              </p>
+              <p className="min-w-0 truncate text-sm font-medium text-ink">
+                <GhostText>{row.paid}</GhostText>
+              </p>
+              <p className="min-w-0 truncate text-sm font-medium text-ink">
+                <GhostText>{row.remaining}</GhostText>
+              </p>
+              <div className="min-w-0">
+                <div className="mb-1.5">
+                  <p className="text-xs text-muted">
+                    <GhostText>{row.progress}</GhostText>
+                  </p>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-surface">
+                  <Bone className="h-full w-2/3 rounded-full" />
+                </div>
+              </div>
+              <div className="relative flex w-full flex-nowrap items-center justify-end gap-2">
+                <GhostControl className="inline-flex h-9 shrink-0 gap-1.5 px-3 text-sm font-medium">
+                  Copy link
+                </GhostControl>
+                <GhostControl className="inline-flex h-9 shrink-0 px-3.5 text-sm font-medium">
+                  Open
+                </GhostControl>
+                <Bone className="size-8 shrink-0 rounded-[8px]" />
+              </div>
             </div>
           </li>
         ))}
@@ -786,12 +935,13 @@ export function ProjectListSkeleton() {
 }
 
 export function ProjectsPageSkeleton({
-  viewMode = "list",
+  viewMode = "grid",
 }: {
   viewMode?: "list" | "grid";
 }) {
   return (
-    <div className="w-full flex-1 px-4 py-6 sm:px-6 md:px-8 md:py-8">
+    <div className="flex w-full flex-1 flex-col px-4 py-6 sm:px-6 md:px-8 md:py-8">
+      {/* Header — matches live ProjectsPage */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="page-title">
@@ -804,44 +954,84 @@ export function ProjectsPageSkeleton({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-          <div className="inline-flex h-11 items-center rounded-[8px] border border-border bg-card p-1">
-            <GhostControl className="inline-flex h-9 items-center gap-1.5 px-2.5 text-xs font-semibold">
+          <div className="inline-flex h-11 items-center gap-0.5 rounded-[8px] border border-border bg-card p-1">
+            <GhostControl
+              className="inline-flex h-9 items-center px-2.5 text-xs font-semibold"
+              radiusClass="rounded-[6px]"
+            >
+              <span className="size-3.5 shrink-0" aria-hidden />
               List
             </GhostControl>
-            <GhostControl className="inline-flex h-9 items-center gap-1.5 px-2.5 text-xs font-semibold">
-              Rows
+            <GhostControl
+              className="inline-flex h-9 items-center px-2.5 text-xs font-semibold"
+              radiusClass="rounded-[6px]"
+            >
+              <span className="size-3.5 shrink-0" aria-hidden />
+              Grid
             </GhostControl>
           </div>
-          <GhostControl className="inline-flex h-11 items-center gap-2 px-4 text-sm font-semibold">
-            New Project
-          </GhostControl>
+          <span className="relative inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-[8px] px-4 text-sm font-semibold">
+            <span className="invisible inline-flex items-center gap-2 whitespace-nowrap">
+              <span className="size-4 shrink-0" aria-hidden />
+              New Project
+            </span>
+            <span
+              className="auth-skeleton absolute inset-0 rounded-[8px]"
+              aria-hidden
+            />
+          </span>
         </div>
       </div>
 
+      {/* Search + filters + sort — matches live ProjectsPage */}
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <Bone className="h-10 w-full rounded-[8px] lg:max-w-md" />
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap gap-1.5">
-            {(["All", "Active", "Draft", "On Hold", "Completed", "Archived"] as const).map(
-              (label) => (
-                <GhostControl
-                  key={label}
-                  className="h-8 px-3 text-xs font-medium"
-                >
-                  {label}
-                </GhostControl>
-              ),
-            )}
+        <div className="relative flex h-10 min-w-0 flex-1 items-center gap-2.5 rounded-[10px] border border-border bg-card px-3 lg:max-w-md">
+          <span className="invisible size-4 shrink-0" aria-hidden />
+          <span className="invisible min-w-0 flex-1 truncate text-sm whitespace-nowrap">
+            Search projects...
+          </span>
+          <span
+            className="auth-skeleton absolute inset-0 rounded-[10px]"
+            aria-hidden
+          />
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
+          <div
+            role="group"
+            aria-label="Project status"
+            className="flex flex-wrap gap-1.5"
+          >
+            {(
+              [
+                "All",
+                "Active",
+                "Draft",
+                "On Hold",
+                "Completed",
+                "Archived",
+              ] as const
+            ).map((label) => (
+              <GhostControl
+                key={label}
+                className="h-8 px-3 text-xs font-medium"
+                radiusClass="rounded-[8px]"
+              >
+                {label}
+              </GhostControl>
+            ))}
           </div>
-          <GhostControl className="inline-flex h-9 items-center gap-1.5 px-3 text-sm font-medium">
-            All payments
-          </GhostControl>
-          <GhostControl className="inline-flex h-9 items-center gap-1.5 px-3 text-sm font-medium">
-            All clients
-          </GhostControl>
-          <GhostControl className="inline-flex h-9 items-center gap-1.5 px-3 text-sm font-medium">
-            Sort: Recently updated
-          </GhostControl>
+          <GhostMenuButton
+            label="All payments"
+            widthLabel={PROJECTS_FILTER_WIDTHS.payments}
+          />
+          <GhostMenuButton
+            label="All clients"
+            widthLabel={PROJECTS_FILTER_WIDTHS.clients}
+          />
+          <GhostMenuButton
+            label="Sort: Recently updated"
+            widthLabel={PROJECTS_FILTER_WIDTHS.sort}
+          />
         </div>
       </div>
 
@@ -852,32 +1042,44 @@ export function ProjectsPageSkeleton({
 
 export function ProjectDetailSkeleton() {
   return (
-    <div className="w-full flex-1 px-6 py-6 sm:px-8">
-      <Bone className="h-4 w-24 rounded-[4px]" />
-      <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:justify-between">
+    <div className="w-full flex-1 px-4 py-6 sm:px-6 md:px-8 md:py-8">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:justify-between">
         <div>
-          <Bone className="h-8 w-64 rounded-[4px]" />
-          <Bone className="mt-3 h-4 w-40 rounded-[4px]" />
+          <Bone className="h-8 w-56 rounded-[4px]" />
+          <Bone className="mt-2 h-4 w-32 rounded-[4px]" />
         </div>
         <div className="flex gap-2">
           <Bone className="h-10 w-28 rounded-[8px]" />
           <Bone className="h-10 w-10 rounded-[8px]" />
         </div>
       </div>
-      <div className="mt-6 flex gap-2">
+      <div className="mb-6 flex gap-1 border-b border-border">
         {Array.from({ length: 5 }).map((_, i) => (
-          <Bone key={i} className="h-9 w-20 rounded-[8px]" />
+          <Bone key={i} className="mb-3 h-5 w-16 rounded-[4px]" />
         ))}
       </div>
-      <div className="mt-6 space-y-4">
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <Bone className="h-3 w-28 rounded-[4px]" />
-          <Bone className="mt-4 h-12 w-24 rounded-[4px]" />
-          <Bone className="mt-5 h-2.5 w-full rounded-full" />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(17rem,0.9fr)]">
+        <div className="space-y-6">
+          <div className="card-surface p-5 sm:p-6">
+            <Bone className="h-3 w-28 rounded-[4px]" />
+            <Bone className="mt-3 h-12 w-full rounded-[4px]" />
+            <Bone className="mt-5 h-2 w-full rounded-full" />
+            <div className="mt-5 grid grid-cols-2 gap-4 border-t border-border pt-5 sm:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i}>
+                  <Bone className="h-3 w-14 rounded-[4px]" />
+                  <Bone className="mt-2 h-4 w-20 rounded-[4px]" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <Bone className="h-40 w-full rounded-[var(--radius-md)]" />
+          <Bone className="h-48 w-full rounded-[var(--radius-md)]" />
         </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Bone className="h-36 w-full rounded-2xl" />
-          <Bone className="h-36 w-full rounded-2xl" />
+        <div className="space-y-4">
+          <Bone className="h-44 w-full rounded-[var(--radius-md)]" />
+          <Bone className="h-40 w-full rounded-[var(--radius-md)]" />
+          <Bone className="h-32 w-full rounded-[var(--radius-md)]" />
         </div>
       </div>
     </div>

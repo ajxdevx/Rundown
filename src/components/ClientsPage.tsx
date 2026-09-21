@@ -64,8 +64,8 @@ const LIST_COLS =
 const chipClass = (active: boolean) =>
   `h-8 cursor-pointer rounded-[8px] px-3 text-xs font-medium transition-colors ${
     active
-      ? "bg-accent-soft text-ink"
-      : "text-muted hover:bg-surface-hover hover:text-ink"
+      ? "bg-accent text-ink"
+      : "text-muted hover:bg-bg-hover hover:text-ink"
   }`;
 
 function formatMoney(n: number) {
@@ -290,7 +290,7 @@ export default function ClientsPage() {
             <button
               type="button"
               onClick={() => openAdd()}
-              className="inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 self-start rounded-[8px] btn-accent px-4 text-sm font-semibold sm:self-auto"
+              className="inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 self-start rounded-[8px] btn-secondary px-4 text-sm font-semibold sm:self-auto"
             >
               <Plus className="size-4" strokeWidth={2.25} />
               Add Client
@@ -313,7 +313,7 @@ export default function ClientsPage() {
               <button
                 type="button"
                 onClick={refresh}
-                className="inline-flex h-10 cursor-pointer items-center rounded-[8px] btn-primary px-4 text-sm font-semibold"
+                className="inline-flex h-10 cursor-pointer items-center rounded-[8px] btn-secondary px-4 text-sm font-semibold"
               >
                 Retry
               </button>
@@ -328,6 +328,7 @@ export default function ClientsPage() {
                   label: "Add Client",
                   onClick: () => openAdd(),
                   icon: Plus,
+                  variant: "secondary",
                 }}
                 compact
               />

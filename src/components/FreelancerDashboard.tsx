@@ -16,20 +16,28 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
-  Sparkles,
   Trash2,
   UserPlus,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   type ActiveProject,
   type NeedsAttentionItem,
   type PaymentStatus,
-  type ProjectStatus,
   type RecentPayment,
+  dashboardStats,
+  needsAttention as seedAttention,
+  recentPayments as seedPayments,
 } from "@/data/dashboardMock";
+import { applySeedFinance } from "@/data/seedWorkspace";
 import { useInitialLoading } from "@/hooks/useInitialLoading";
 import { appendActivity, useActivity } from "@/lib/activityStore";
 import {
@@ -44,61 +52,24 @@ import { backgroundSync } from "@/lib/optimistic";
 import {
   WORKSPACE_CHANGED,
 } from "@/lib/workspaceStore";
+import { deadlineLabelFromIso } from "@/lib/deadlineLabel";
 import ContextMenu from "./ContextMenu";
-import MenuDropdown from "./MenuDropdown";
 import { useAuth } from "./AuthProvider";
 import ActivityList from "./ActivityList";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import DashboardTopBar from "./DashboardTopBar";
 import EmptyState from "./EmptyState";
+import ProjectCard from "./ProjectCard";
 import { DashboardSkeleton } from "./skeletons";
 import { useToastOptional } from "./ToastProvider";
 import { useProjectModal } from "./ProjectModalProvider";
 import { useClientModal } from "./ClientModalProvider";
-import { ProgressBar } from "./ui/ProgressBar";
+import { AppCheckbox } from "./ui/AppCheckbox";
 import {
   paymentStatusIcon,
   paymentStatusTone,
-  projectStatusIcon,
-  projectStatusTone,
   StatusBadge,
 } from "./ui/StatusBadge";
-
-type SortKey =
-  | "updated"
-  | "deadline"
-  | "created"
-  | "name-asc"
-  | "name-desc"
-  | "value-desc"
-  | "value-asc";
-
-type FilterKey =
-  | "all"
-  | "active"
-  | "draft"
-  | "on-hold"
-  | "completed"
-  | "archived";
-
-const SORT_OPTIONS: { id: SortKey; label: string }[] = [
-  { id: "updated", label: "Recently updated" },
-  { id: "deadline", label: "Deadline soonest" },
-  { id: "created", label: "Recently created" },
-  { id: "name-asc", label: "Name A–Z" },
-  { id: "name-desc", label: "Name Z–A" },
-  { id: "value-desc", label: "Highest value" },
-  { id: "value-asc", label: "Lowest value" },
-];
-
-const FILTERS: { id: FilterKey; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "active", label: "Active" },
-  { id: "draft", label: "Draft" },
-  { id: "on-hold", label: "On Hold" },
-  { id: "completed", label: "Completed" },
-  { id: "archived", label: "Archived" },
-];
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat("en-US", {
@@ -142,32 +113,15 @@ function paymentLabel(status: PaymentStatus) {
       return "Paid";
     case "due":
     case "pending":
-      return "Due";
+      return "Unpaid";
     case "partial":
       return "Partial";
     case "overdue":
-      return "Overdue";
+      return "Past due";
     case "processing":
       return "Processing";
     case "failed":
       return "Failed";
-  }
-}
-
-function projectLabel(status: ProjectStatus) {
-  switch (status) {
-    case "active":
-      return "Active";
-    case "draft":
-      return "Draft";
-    case "on-hold":
-      return "On Hold";
-    case "completed":
-      return "Completed";
-    case "archived":
-      return "Archived";
-    case "review":
-      return "Active";
   }
 }
 
@@ -302,32 +256,93 @@ function ProjectMenu({
   );
 }
 
-function NewWorkspace({
-  firstName,
-  onCreateProject,
+function MissionCheck({
+  drawn,
+  staticDone = false,
 }: {
-  firstName: string;
-  onCreateProject: () => void;
+  drawn?: boolean;
+  /** Already complete on load — show check without replaying draw. */
+  staticDone?: boolean;
 }) {
   return (
-    <div className="flex min-h-[55vh] flex-col items-center justify-center px-6 py-16 text-center">
-      <div className="mb-5 flex size-14 items-center justify-center rounded-[12px] bg-accent-soft text-ink">
-        <Sparkles className="size-6" strokeWidth={1.75} />
+    <AppCheckbox
+      checked={Boolean(drawn || staticDone)}
+      drawn={Boolean(drawn)}
+      className="mt-1"
+    />
+  );
+}
+
+function NewWorkspace({
+  onCreateProject,
+  missionComplete = false,
+}: {
+  onCreateProject: () => void;
+  missionComplete?: boolean;
+}) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center px-4 py-12 sm:px-8">
+      <div className="mb-6 flex size-16 items-center justify-center rounded-[20px] bg-surface text-ink sm:size-[4.5rem]">
+        <FolderKanban
+          className="size-7 sm:size-8"
+          strokeWidth={1.75}
+          aria-hidden
+        />
       </div>
-      <h2 className="page-title">Your workspace is ready.</h2>
-      <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">
-        Create your first project to start organizing your work and giving
-        clients a simple place to follow progress.
-        {firstName ? ` Welcome, ${firstName}.` : ""}
+      <h2 className="font-[family-name:var(--font-brand)] text-center text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+        {missionComplete ? "You're all set" : "Let's get you started"}
+      </h2>
+      <p className="mt-3 max-w-lg text-center text-base leading-relaxed text-muted">
+        {missionComplete
+          ? "Opening your workspace…"
+          : "A couple of first steps after signing in — your workspace is ready."}
       </p>
-      <button
-        type="button"
-        onClick={onCreateProject}
-        className="mt-8 inline-flex h-11 cursor-pointer items-center gap-2 rounded-[8px] btn-accent px-4 text-sm font-semibold"
-      >
-        <Plus className="size-4" strokeWidth={2.25} />
-        Create First Project
-      </button>
+
+      <ul className="mt-10 w-full max-w-xl space-y-3">
+        <li>
+          <div className="flex w-full items-start gap-4 rounded-[14px] border border-border bg-card px-5 py-5 sm:px-6 sm:py-6">
+            <MissionCheck staticDone />
+            <span className="min-w-0 flex-1">
+              <span className="block text-base font-semibold text-ink line-through decoration-accent decoration-2 sm:text-lg">
+                Create your workspace
+              </span>
+              <span className="mt-1.5 block text-sm leading-relaxed text-muted sm:text-[15px]">
+                Done — you&apos;re signed in and set up.
+              </span>
+            </span>
+          </div>
+        </li>
+        <li>
+          <button
+            type="button"
+            onClick={missionComplete ? undefined : onCreateProject}
+            disabled={missionComplete}
+            className={`group flex w-full items-start gap-4 rounded-[14px] border border-border bg-card px-5 py-5 text-left outline-none sm:px-6 sm:py-6 ${
+              missionComplete
+                ? "mission-card-done cursor-default"
+                : "cursor-pointer transition-colors hover:border-border-strong hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-ink/20"
+            }`}
+          >
+            <MissionCheck drawn={missionComplete} />
+            <span className="min-w-0 flex-1">
+              <span
+                className={`block text-base font-semibold sm:text-lg ${
+                  missionComplete
+                    ? "text-ink line-through decoration-accent decoration-2"
+                    : "text-ink"
+                }`}
+              >
+                Create your first project
+              </span>
+              <span className="mt-1.5 block text-sm leading-relaxed text-muted sm:text-[15px]">
+                {missionComplete
+                  ? "Mission complete"
+                  : "Add the work, set a deadline, and keep progress in one place."}
+              </span>
+            </span>
+          </button>
+        </li>
+      </ul>
     </div>
   );
 }
@@ -347,13 +362,13 @@ export default function FreelancerDashboard({
   const loading = useInitialLoading(420);
   const activity = useActivity();
   const [projects, setProjects] = useState<ActiveProject[]>([]);
-  const [payments, setPayments] = useState<RecentPayment[]>([]);
-  const [attention] = useState<NeedsAttentionItem[]>([]);
+  const [payments, setPayments] = useState<RecentPayment[]>(seedPayments);
+  const [attention] = useState<NeedsAttentionItem[]>(seedAttention);
   const [paymentStats, setPaymentStats] = useState({
-    outstanding: 0,
-    outstandingInvoices: 0,
-    collected: 0,
-    collectedPeriod: "This month",
+    outstanding: dashboardStats.outstanding,
+    outstandingInvoices: dashboardStats.outstandingInvoices,
+    collected: dashboardStats.collected,
+    collectedPeriod: dashboardStats.collectedPeriod,
   });
   const [clientCount, setClientCount] = useState(0);
   const [paymentsError, setPaymentsError] = useState(false);
@@ -363,13 +378,13 @@ export default function FreelancerDashboard({
     x: number;
     y: number;
   } | null>(null);
-  const [sort, setSort] = useState<SortKey>("updated");
-  const [filter, setFilter] = useState<FilterKey>("active");
   const [menuId, setMenuId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(
     null,
   );
   const [deleteTarget, setDeleteTarget] = useState<ActiveProject | null>(null);
+  const [missionComplete, setMissionComplete] = useState(false);
+  const celebratingRef = useRef(false);
 
   useEffect(() => {
     const mergeCreated = () => {
@@ -381,7 +396,7 @@ export default function FreelancerDashboard({
         const currentTask =
           p.tasks.find((t) => !t.done)?.name ||
           (total > 0 ? "All tasks complete" : "No tasks yet");
-        return {
+        return applySeedFinance({
           id: p.id,
           slug: p.slug,
           name: p.name,
@@ -389,14 +404,16 @@ export default function FreelancerDashboard({
           progress,
           currentTask,
           deadlineAt: p.deadline || "",
-          deadlineLabel: p.deadline ? "Deadline set" : "No deadline",
+          deadlineLabel: p.deadline
+            ? deadlineLabelFromIso(p.deadline)
+            : "No deadline",
           value: p.value ?? 0,
           paid: 0,
           paymentStatus: "due" as const,
           status: p.status,
-          updatedAt: p.createdAt,
+          updatedAt: p.updatedAt || p.createdAt,
           createdAt: p.createdAt,
-        };
+        });
       });
       setProjects(mapped);
     };
@@ -414,6 +431,25 @@ export default function FreelancerDashboard({
       window.removeEventListener(WORKSPACE_CHANGED, syncClients);
     };
   }, []);
+
+  const startFirstProjectCelebration = () => {
+    if (celebratingRef.current) return;
+    celebratingRef.current = true;
+    setMissionComplete(true);
+    window.setTimeout(() => {
+      setMissionComplete(false);
+      celebratingRef.current = false;
+    }, 1600);
+  };
+
+  const openFirstProjectMission = () => {
+    openCreate({
+      skipNavigate: true,
+      onSuccess: () => {
+        startFirstProjectCelebration();
+      },
+    });
+  };
 
   const closeMenu = () => {
     setMenuId(null);
@@ -433,28 +469,15 @@ export default function FreelancerDashboard({
 
   const greeting = greetingForHour(new Date().getHours());
 
-  const filtered = useMemo(() => {
-    let list = [...projects];
-    if (filter !== "all") {
-      list = list.filter((p) => {
-        if (filter === "active")
-          return p.status === "active" || p.status === "review";
-        return p.status === filter;
-      });
-    }
-    list.sort((a, b) => {
-      if (sort === "name-asc") return a.name.localeCompare(b.name);
-      if (sort === "name-desc") return b.name.localeCompare(a.name);
-      if (sort === "value-desc") return b.value - a.value;
-      if (sort === "value-asc") return a.value - b.value;
-      if (sort === "deadline")
-        return a.deadlineAt.localeCompare(b.deadlineAt);
-      if (sort === "created")
-        return b.createdAt.localeCompare(a.createdAt);
-      return b.updatedAt.localeCompare(a.updatedAt);
-    });
-    return list;
-  }, [projects, filter, sort]);
+  const recentProjects = useMemo(() => {
+    return [...projects]
+      .sort((a, b) => {
+        const aRecent = a.updatedAt > a.createdAt ? a.updatedAt : a.createdAt;
+        const bRecent = b.updatedAt > b.createdAt ? b.updatedAt : b.createdAt;
+        return bRecent.localeCompare(aRecent);
+      })
+      .slice(0, 2);
+  }, [projects]);
 
   const activeCount = projects.filter(
     (p) => p.status === "active" || p.status === "review",
@@ -541,7 +564,7 @@ export default function FreelancerDashboard({
                     status: values.status,
                     deadlineAt: values.deadline || p.deadlineAt,
                     deadlineLabel: values.deadline
-                      ? "Deadline set"
+                      ? deadlineLabelFromIso(values.deadline)
                       : "No deadline",
                     progress:
                       values.tasks.length === 0
@@ -675,12 +698,12 @@ export default function FreelancerDashboard({
 
   const retryPayments = () => {
     setPaymentsError(false);
-    setPayments([]);
+    setPayments(seedPayments);
     setPaymentStats({
-      outstanding: 0,
-      outstandingInvoices: 0,
-      collected: 0,
-      collectedPeriod: "This month",
+      outstanding: dashboardStats.outstanding,
+      outstandingInvoices: dashboardStats.outstandingInvoices,
+      collected: dashboardStats.collected,
+      collectedPeriod: dashboardStats.collectedPeriod,
     });
   };
 
@@ -688,7 +711,7 @@ export default function FreelancerDashboard({
     setActivityError(false);
   };
 
-  const isEmptyWorkspace = projects.length === 0 && clientCount === 0;
+  const showWelcome = projects.length === 0 || missionComplete;
 
   return (
     <div className="flex min-h-full flex-col">
@@ -697,9 +720,12 @@ export default function FreelancerDashboard({
       {loading ? (
         <DashboardSkeleton />
       ) : (
-        <div className="w-full flex-1 px-4 py-6 sm:px-6 md:px-8 md:py-8">
-          {isEmptyWorkspace ? (
-            <NewWorkspace firstName={firstName} onCreateProject={openCreate} />
+        <div className="flex w-full flex-1 flex-col px-4 py-6 sm:px-6 md:px-8 md:py-8">
+          {showWelcome ? (
+            <NewWorkspace
+              onCreateProject={openFirstProjectMission}
+              missionComplete={missionComplete}
+            />
           ) : (
             <>
               {/* Header */}
@@ -712,14 +738,24 @@ export default function FreelancerDashboard({
                     Here&apos;s what&apos;s happening across your projects.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => openCreate()}
-                  className="inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 self-start rounded-[8px] btn-accent px-4 text-sm font-semibold sm:self-auto"
-                >
-                  <Plus className="size-4" strokeWidth={2.25} />
-                  New Project
-                </button>
+                <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => openCreate()}
+                    className="inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-[8px] btn-accent px-4 text-sm font-semibold"
+                  >
+                    <Plus className="size-4" strokeWidth={2.25} />
+                    New Project
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openAdd()}
+                    className="inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-[8px] btn-secondary px-4 text-sm font-semibold"
+                  >
+                    <UserPlus className="size-4" strokeWidth={2} />
+                    Add a client
+                  </button>
+                </div>
               </div>
 
               {/* Summary */}
@@ -776,153 +812,81 @@ export default function FreelancerDashboard({
                 ))}
               </div>
 
-              {/* Active Projects — primary */}
-              <div className="mb-8">
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-3">
-                    <h2 className="section-title">Active Projects</h2>
-                    <Link
-                      href="/projects"
-                      className="text-sm font-medium text-muted hover:text-ink"
-                    >
-                      View all
-                    </Link>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex flex-wrap gap-1.5">
-                      {FILTERS.map((f) => (
-                        <button
-                          key={f.id}
-                          type="button"
-                          onClick={() => setFilter(f.id)}
-                          className={`h-8 cursor-pointer rounded-[8px] px-3 text-xs font-medium transition-colors ${
-                            filter === f.id
-                              ? "bg-accent-soft text-ink"
-                              : "text-muted hover:bg-surface-hover hover:text-ink"
-                          }`}
-                        >
-                          {f.label}
-                        </button>
-                      ))}
+              {/* Projects + Payments — shared content row so empty payments match project cards height */}
+              <div className="mb-8 flex flex-col gap-6 xl:grid xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.9fr)] xl:grid-rows-[auto_1fr] xl:gap-x-6 xl:gap-y-4">
+                <div className="min-w-0 xl:col-start-1 xl:row-start-1">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-3">
+                      <h2 className="section-title">Active Projects</h2>
+                      <Link
+                        href="/projects"
+                        className="text-sm font-medium text-muted hover:text-ink"
+                      >
+                        View all
+                      </Link>
                     </div>
-                    <MenuDropdown
-                      value={sort}
-                      onChange={(v) => setSort(v as SortKey)}
-                      options={SORT_OPTIONS}
-                      labelPrefix="Sort: "
-                      widthLabel="Sort: Deadline soonest"
-                    />
+                    <p className="mt-1 text-sm text-muted">
+                      Your live work — progress, payments, and what&apos;s
+                      due next.
+                    </p>
                   </div>
                 </div>
 
-                {filtered.length === 0 ? (
-                  <div className="card-surface">
-                    <EmptyState
-                      icon={FolderKanban}
-                      title={
-                        filter === "active"
-                          ? "No active projects"
-                          : `No ${FILTERS.find((f) => f.id === filter)?.label.toLowerCase() ?? ""} projects`
-                      }
-                      description={
-                        filter === "active"
-                          ? "Create your first project to start managing work and sharing a client portal."
-                          : "Projects matching this filter will appear here."
-                      }
-                      action={
-                        filter === "active"
-                          ? {
-                              label: "Create Project",
-                              onClick: () => openCreate(),
-                              icon: Plus,
-                            }
-                          : undefined
-                      }
-                      compact
-                    />
-                  </div>
-                ) : (
-                  <ul className="grid gap-3 lg:grid-cols-2">
-                    {filtered.map((project) => {
-                      const overdue =
-                        project.deadlineLabel.toLowerCase().includes("overdue");
-                      const openProject = () =>
-                        router.push(`/projects/${project.slug}`);
-                      return (
-                        <li
+                <div className="order-3 min-w-0 xl:order-none xl:col-start-2 xl:row-start-1 [&_.mb-4]:xl:mb-0">
+                  <SectionHead
+                    title="Payments"
+                    description="Keep track of what's due and what you've collected."
+                    action={
+                      <Link
+                        href="/billing"
+                        className="text-sm font-medium text-muted hover:text-ink"
+                      >
+                        View all
+                      </Link>
+                    }
+                  />
+                </div>
+
+                <div className="min-w-0 xl:col-start-1 xl:row-start-2">
+                  {recentProjects.length === 0 ? (
+                    <div className="card-surface flex h-full min-h-0 flex-col">
+                      <EmptyState
+                        icon={FolderKanban}
+                        title="No projects yet"
+                        description="Create your first project to start managing work and sharing a client portal."
+                        action={{
+                          label: "Create Project",
+                          onClick: () => openCreate(),
+                          icon: Plus,
+                        }}
+                        compact
+                        className="flex-1"
+                      />
+                    </div>
+                  ) : (
+                    <ul className="grid h-full content-start gap-2.5">
+                      {recentProjects.map((project) => (
+                        <ProjectCard
                           key={project.id}
-                          role="link"
-                          tabIndex={0}
-                          onClick={(e) => {
-                            const target = e.target as HTMLElement;
-                            if (
-                              target.closest("button") ||
-                              target.closest("a") ||
-                              target.closest("[role='menu']")
-                            ) {
-                              return;
-                            }
-                            openProject();
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              openProject();
-                            }
-                          }}
+                          project={project}
+                          compact
+                          onOpen={() =>
+                            router.push(`/projects/${project.slug}`)
+                          }
+                          onCopyLink={() => void copyPortalLink(project)}
                           onContextMenu={(e) => {
                             e.preventDefault();
                             setMenuId(project.id);
                             setMenuPos({ x: e.clientX, y: e.clientY });
                           }}
-                          className="card-surface-interactive flex cursor-pointer flex-col p-5"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <h3 className="text-[15px] font-semibold text-ink">
-                                  {project.name}
-                                </h3>
-                                <StatusBadge
-                                  label={projectLabel(project.status)}
-                                  tone={projectStatusTone(project.status)}
-                                  icon={projectStatusIcon(project.status)}
-                                />
-                                <StatusBadge
-                                  label={paymentLabel(
-                                    project.paymentStatus === "partial"
-                                      ? "due"
-                                      : project.paymentStatus,
-                                  )}
-                                  tone={paymentStatusTone(
-                                    project.paymentStatus === "partial"
-                                      ? "due"
-                                      : project.paymentStatus,
-                                  )}
-                                  icon={paymentStatusIcon(
-                                    project.paymentStatus === "partial"
-                                      ? "due"
-                                      : project.paymentStatus,
-                                  )}
-                                />
-                                {overdue &&
-                                project.paymentStatus !== "overdue" ? (
-                                  <StatusBadge
-                                    label="Overdue"
-                                    tone="danger"
-                                    icon={paymentStatusIcon("overdue")}
-                                  />
-                                ) : null}
-                              </div>
-                              <p className="mt-1 text-sm text-muted">
-                                {project.client}
-                              </p>
-                            </div>
-                            <div className="relative shrink-0">
+                          menu={
+                            <>
                               <button
                                 type="button"
                                 aria-label="Project actions"
-                                aria-expanded={menuId === project.id && !menuPos}
+                                aria-expanded={
+                                  menuId === project.id && !menuPos
+                                }
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (menuId === project.id && !menuPos) {
@@ -947,88 +911,24 @@ export default function FreelancerDashboard({
                                   onAction={(a) => onMenuAction(project, a)}
                                 />
                               ) : null}
-                            </div>
-                          </div>
+                              {menuId === project.id && menuPos ? (
+                                <ProjectMenu
+                                  open
+                                  position={menuPos}
+                                  onClose={closeMenu}
+                                  onAction={(a) => onMenuAction(project, a)}
+                                />
+                              ) : null}
+                            </>
+                          }
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </div>
 
-                          <div className="mt-4">
-                            <ProgressBar
-                              value={project.progress}
-                              meta={`${project.progress}% · ${project.currentTask}`}
-                            />
-                          </div>
-
-                          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted">
-                            <span
-                              className={
-                                overdue ? "font-medium text-danger" : ""
-                              }
-                            >
-                              {project.deadlineLabel}
-                            </span>
-                            <span className="text-ink">
-                              {formatMoney(project.value)}
-                            </span>
-                            <span>
-                              <span className={moneyToneClass("paid")}>
-                                {formatMoney(project.paid)}
-                              </span>{" "}
-                              paid
-                            </span>
-                          </div>
-
-                          <div className="mt-4 flex items-center justify-end gap-2 border-t border-border pt-4">
-                            <button
-                              type="button"
-                              aria-label="Copy portal link"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void copyPortalLink(project);
-                              }}
-                              className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-[8px] px-3 text-sm font-medium text-muted hover-soft"
-                            >
-                              <Copy className="size-3.5" strokeWidth={1.75} />
-                              Copy link
-                            </button>
-                            <Link
-                              href={`/projects/${project.slug}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex h-9 cursor-pointer items-center rounded-[8px] btn-primary px-3.5 text-sm font-medium"
-                            >
-                              Open
-                            </Link>
-                          </div>
-
-                          {menuId === project.id && menuPos ? (
-                            <ProjectMenu
-                              open
-                              position={menuPos}
-                              onClose={closeMenu}
-                              onAction={(a) => onMenuAction(project, a)}
-                            />
-                          ) : null}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-
-              {/* Payments + Needs Attention — equal width */}
-              <div className="mb-8 grid gap-6 lg:grid-cols-2">
-                <div className="min-w-0">
-                  <SectionHead
-                    title="Payments"
-                    description="Keep track of what's due and what you've collected."
-                    action={
-                      <Link
-                        href="/billing"
-                        className="text-sm font-medium text-muted hover:text-ink"
-                      >
-                        View all
-                      </Link>
-                    }
-                  />
-                  <div className="card-surface overflow-hidden">
+                <div className="order-4 flex min-h-0 min-w-0 flex-col xl:order-none xl:col-start-2 xl:row-start-2">
+                  <div className="card-surface flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                     {paymentsError ? (
                       <SectionError
                         title="Payments couldn't be loaded"
@@ -1046,6 +946,7 @@ export default function FreelancerDashboard({
                           icon: Plus,
                         }}
                         compact
+                        className="flex-1"
                       />
                     ) : (
                       <>
@@ -1166,8 +1067,45 @@ export default function FreelancerDashboard({
                     )}
                   </div>
                 </div>
+              </div>
 
-                <div className="min-w-0">
+              {/* Recent Activity + Needs Attention */}
+              <div className="mb-8 grid items-stretch gap-6 lg:grid-cols-2">
+                <div className="flex min-h-0 min-w-0 flex-col">
+                  <SectionHead
+                    title="Recent Activity"
+                    description="See what's been happening across your workspace."
+                    action={
+                      <Link
+                        href="/activity"
+                        className="text-sm font-medium text-muted hover:text-ink"
+                      >
+                        View all
+                      </Link>
+                    }
+                  />
+                  <div className="card-surface flex min-h-0 flex-1 flex-col overflow-hidden">
+                    {activityError ? (
+                      <SectionError
+                        title="Activity couldn't be loaded"
+                        description="Try again to see the latest workspace activity."
+                        onRetry={retryActivity}
+                      />
+                    ) : (
+                      <ActivityList
+                        items={activity}
+                        limit={6}
+                        showGroups={false}
+                        compact
+                        bare
+                        emptyTitle="No activity yet"
+                        emptyDescription="Project and client activity will appear here as your workspace gets moving."
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex min-h-0 min-w-0 flex-col">
                   <SectionHead
                     title="Needs Attention"
                     description="A few things may need your attention."
@@ -1180,33 +1118,28 @@ export default function FreelancerDashboard({
                       ) : undefined
                     }
                   />
-                  <div className="card-surface overflow-hidden">
+                  <div className="card-surface flex min-h-0 flex-1 flex-col overflow-hidden">
                     {attention.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
-                        <div className="mb-4 flex size-10 items-center justify-center rounded-full bg-success-soft text-success">
-                          <CheckCircle2
-                            className="size-5"
-                            strokeWidth={1.75}
-                          />
-                        </div>
-                        <h3 className="text-sm font-semibold text-ink">
-                          You&apos;re all caught up
-                        </h3>
-                        <p className="mt-1.5 max-w-sm text-sm text-muted">
-                          There&apos;s nothing from your clients that needs
-                          your attention right now.
-                        </p>
-                      </div>
+                      <EmptyState
+                        icon={CheckCircle2}
+                        title="You're all caught up"
+                        description="There's nothing from your clients that needs your attention right now."
+                        compact
+                        className="flex-1"
+                      />
                     ) : (
-                      <ul>
-                        {attention.map((item) => {
+                      <ul className="flex flex-1 flex-col">
+                        {attention.map((item, index) => {
                           const Icon = attentionIcon(item.kind);
+                          const isLast = index === attention.length - 1;
                           return (
                             <li
                               key={item.id}
-                              className="border-b border-border last:border-0"
+                              className={`flex flex-1 border-b border-border ${
+                                isLast ? "last:border-0" : ""
+                              }`}
                             >
-                              <div className="flex items-start gap-3 px-5 py-4 transition-colors hover:bg-surface-hover has-[[data-hover-stop]:hover]:bg-transparent">
+                              <div className="flex w-full items-start gap-3 px-5 py-4 transition-colors hover:bg-surface-hover has-[[data-hover-stop]:hover]:bg-transparent">
                                 <span
                                   className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-[8px] ${
                                     item.tone === "problem"
@@ -1250,41 +1183,6 @@ export default function FreelancerDashboard({
                       </ul>
                     )}
                   </div>
-                </div>
-              </div>
-
-              {/* Recent Activity — full width */}
-              <div className="mb-8">
-                <SectionHead
-                  title="Recent Activity"
-                  description="See what's been happening across your workspace."
-                  action={
-                    <Link
-                      href="/activity"
-                      className="text-sm font-medium text-muted hover:text-ink"
-                    >
-                      View all
-                    </Link>
-                  }
-                />
-                <div className="card-surface overflow-hidden">
-                  {activityError ? (
-                    <SectionError
-                      title="Activity couldn't be loaded"
-                      description="Try again to see the latest workspace activity."
-                      onRetry={retryActivity}
-                    />
-                  ) : (
-                    <ActivityList
-                      items={activity}
-                      limit={6}
-                      showGroups={false}
-                      compact
-                      bare
-                      emptyTitle="No activity yet"
-                      emptyDescription="Project and client activity will appear here as your workspace gets moving."
-                    />
-                  )}
                 </div>
               </div>
 

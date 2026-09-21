@@ -297,7 +297,7 @@ export default function NotificationsPage() {
             <button
               type="button"
               onClick={onMarkAll}
-              className="inline-flex h-10 cursor-pointer items-center gap-2 self-start rounded-[8px] border border-border px-4 text-sm font-medium text-ink hover-soft sm:self-auto"
+              className="inline-flex h-10 cursor-pointer items-center gap-2 self-start rounded-[8px] btn-secondary px-4 text-sm font-semibold sm:self-auto"
             >
               <Check className="size-3.5" strokeWidth={2} />
               Mark all as read
@@ -323,7 +323,7 @@ export default function NotificationsPage() {
             <button
               type="button"
               onClick={() => setLoadError(false)}
-              className="inline-flex h-9 cursor-pointer items-center rounded-[8px] border border-border px-3.5 text-sm font-medium text-ink hover-soft"
+              className="inline-flex h-9 cursor-pointer items-center rounded-[8px] btn-secondary px-3.5 text-sm font-semibold"
             >
               Try again
             </button>
@@ -340,7 +340,7 @@ export default function NotificationsPage() {
                     className={`h-9 cursor-pointer rounded-[8px] px-3 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ink/20 ${
                       readFilter === f.id
                         ? "bg-accent text-ink"
-                        : "border border-border text-muted hover:bg-surface-hover hover:text-ink"
+                        : "border border-border text-muted hover:bg-bg-hover hover:text-ink"
                     }`}
                   >
                     {f.label}

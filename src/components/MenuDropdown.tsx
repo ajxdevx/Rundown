@@ -111,7 +111,11 @@ export default function MenuDropdown({
                   onChange(opt.id);
                   setOpen(false);
                 }}
-                className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-[8px] px-3 py-2 text-left text-sm text-ink hover-soft"
+                className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-[8px] px-3 py-2 text-left text-sm ${
+                  value === opt.id
+                    ? "bg-accent font-medium text-ink"
+                    : "text-ink hover-soft"
+                }`}
               >
                 {opt.label}
                 {value === opt.id ? (

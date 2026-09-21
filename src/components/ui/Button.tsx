@@ -2,12 +2,15 @@
 
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-type Variant = "primary" | "accent" | "secondary" | "ghost" | "danger";
+/** main = lime, secondary = outlined, danger = red */
+type Variant = "main" | "accent" | "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md" | "lg";
 
 const variantClass: Record<Variant, string> = {
-  primary: "btn-primary",
+  main: "btn-accent",
   accent: "btn-accent",
+  /** @deprecated use main — maps to lime */
+  primary: "btn-accent",
   secondary: "btn-secondary",
   ghost: "btn-ghost",
   danger: "btn-danger",
@@ -26,7 +29,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 export function Button({
-  variant = "primary",
+  variant = "main",
   size = "md",
   className = "",
   children,

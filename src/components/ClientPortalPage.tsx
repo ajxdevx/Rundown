@@ -379,7 +379,7 @@ function PortalContent({ slug }: ClientPortalPageProps) {
             <a
               href={`mailto:${portalBusiness.contactEmail}`}
               aria-label="Help and contact"
-              className="flex size-9 cursor-pointer items-center justify-center rounded-[8px] text-muted outline-none hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-ink/20"
+              className="flex size-9 cursor-pointer items-center justify-center rounded-[8px] text-muted outline-none hover:bg-bg-hover focus-visible:ring-2 focus-visible:ring-ink/20"
             >
               <HelpCircle className="size-4" strokeWidth={1.75} />
             </a>

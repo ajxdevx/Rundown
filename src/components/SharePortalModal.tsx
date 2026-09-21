@@ -67,7 +67,7 @@ export default function SharePortalModal({
             href={portalUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[8px] border border-border bg-card text-sm font-semibold text-ink hover-soft"
+            className="inline-flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[8px] btn-secondary text-sm font-semibold"
           >
             <ExternalLink className="size-4" strokeWidth={1.75} />
             Open Portal

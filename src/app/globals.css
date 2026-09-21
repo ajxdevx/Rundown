@@ -12,8 +12,10 @@
   --border-strong: #d8d8d2;
   --surface: #eeeeea;
   --surface-strong: #e5e5e0;
-  /* Soft hover wash — between white and --surface */
-  --surface-hover: #f0f0ec;
+  /* Soft hover wash — light grey for white/card surfaces */
+  --surface-hover: #f5f5f2;
+  /* Stronger hover wash — for app background (#f7f7f4), e.g. sidebar */
+  --bg-hover: #f0f0ec;
 
   /* Accent */
   --accent: #c8ff3d;
@@ -29,6 +31,14 @@
   --danger-soft: #f8eaea;
   --info: #4a73a8;
   --info-soft: #eaf0f7;
+  /* Deadline due chips — true orange / yellow (not warning amber) */
+  --orange: #d97706;
+  --orange-soft: #fff1e0;
+  --yellow: #ca8a04;
+  --yellow-soft: #fef9c3;
+  /* Schedule / deadline (not invoice amber/lime) */
+  --schedule: #5b6bc7;
+  --schedule-soft: #eef0fb;
 
   /* Radius */
   --radius-sm: 8px;
@@ -39,6 +49,12 @@
   /* Elevation */
   --shadow-elevated: 0 8px 28px rgba(17, 17, 17, 0.1);
   --shadow-popover: 0 12px 40px rgba(17, 17, 17, 0.12);
+
+  /* Motion — shared landing + product language */
+  --motion-fast: 120ms;
+  --motion-base: 160ms;
+  --motion-panel: 220ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @theme inline {
@@ -56,6 +72,7 @@
   --color-surface: var(--surface);
   --color-surface-strong: var(--surface-strong);
   --color-surface-hover: var(--surface-hover);
+  --color-bg-hover: var(--bg-hover);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
   --color-warning: var(--warning);
@@ -64,6 +81,12 @@
   --color-danger-soft: var(--danger-soft);
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
+  --color-orange: var(--orange);
+  --color-orange-soft: var(--orange-soft);
+  --color-yellow: var(--yellow);
+  --color-yellow-soft: var(--yellow-soft);
+  --color-schedule: var(--schedule);
+  --color-schedule-soft: var(--schedule-soft);
   --font-sans: var(--font-manrope);
   --font-mono: var(--font-geist-mono);
   --radius-sm: 8px;
@@ -213,9 +236,55 @@ select:focus-visible {
   animation: toast-in 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes mission-check-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes mission-check-box-in {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes mission-card-done {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.015);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.mission-check-box {
+  animation: mission-check-box-in 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.mission-check-draw {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: mission-check-draw 520ms cubic-bezier(0.4, 0, 0.2, 1) 120ms forwards;
+}
+
+.mission-card-done {
+  animation: mission-card-done 520ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .auth-skeleton,
   .animate-toast-in,
+  .mission-check-box,
+  .mission-check-draw,
+  .mission-card-done,
   .animate-popup-backdrop,
   .animate-popup-backdrop-out,
   .animate-popup-panel,
@@ -224,18 +293,170 @@ select:focus-visible {
   .animate-search-backdrop-out,
   .animate-search-panel,
   .animate-search-panel-out,
-  .animate-continue-btn {
+  .animate-continue-btn,
+  .landing-reveal,
+  .landing-demo-view,
+  .hero-pill-word-in,
+  .hero-pill-word-out {
     animation: none !important;
   }
 
+  .mission-check-draw {
+    stroke-dashoffset: 0;
+  }
+
   .hover-soft,
+  .hover-bg,
   .btn-accent,
   .btn-primary,
   .btn-secondary,
   .btn-ghost,
-  .card-surface-interactive {
+  .card-surface-interactive,
+  .landing-ix-row,
+  .landing-ix-tab,
+  .landing-ix-nav,
+  .landing-ix-icon,
+  .landing-ix-link,
+  .landing-reveal,
+  .landing-demo-view,
+  .faq-chevron {
     transition: none !important;
   }
+
+  .landing-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  html:has(.landing-root) {
+    scroll-behavior: auto;
+  }
+}
+
+/* Landing page — allow document scroll without affecting app shell routes */
+html:has(.landing-root),
+html:has(.landing-root) body {
+  height: auto;
+  min-height: 100%;
+  overflow: auto;
+}
+
+html:has(.landing-root) {
+  scroll-behavior: smooth;
+}
+
+.landing-root {
+  isolation: isolate;
+  font-size: 17px;
+}
+
+.landing-shell {
+  width: 100%;
+  margin-inline: auto;
+  max-width: 84rem;
+  padding-inline: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .landing-shell {
+    padding-inline: 1rem;
+  }
+}
+
+.landing-section {
+  padding-block: 5.5rem;
+}
+
+@media (min-width: 640px) {
+  .landing-section {
+    padding-block: 7rem;
+  }
+}
+
+/* Subtle section reveal */
+.landing-reveal {
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity var(--motion-panel) var(--ease-out),
+    transform var(--motion-panel) var(--ease-out);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+.landing-reveal-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Demo view crossfade */
+@keyframes landing-demo-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.landing-demo-view {
+  animation: landing-demo-in var(--motion-base) var(--ease-out);
+}
+
+/* Hero rotating pill word */
+@keyframes hero-pill-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hero-pill-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+.hero-pill-word-in {
+  animation: hero-pill-in 220ms var(--ease-out) forwards;
+}
+
+.hero-pill-word-out {
+  animation: hero-pill-out 200ms ease forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-pill-word-in,
+  .hero-pill-word-out {
+    animation: none !important;
+  }
+}
+
+/* Landing toast offset — keep clear of sticky nav / mobile chrome */
+html:has(.landing-root) .landing-toast-host {
+  bottom: 1.25rem;
+}
+
+.faq-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--motion-base) var(--ease-out);
+}
+
+.faq-panel[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+
+.faq-panel-inner {
+  overflow: hidden;
 }
 
 @layer components {
@@ -259,6 +480,27 @@ select:focus-visible {
     color: var(--ink);
   }
 
+  /** Soft hover for app background surfaces (sidebar, top bar, page chrome) */
+  .hover-bg {
+    transition-property: color, background-color;
+    transition-duration: 160ms;
+    transition-timing-function: ease;
+  }
+
+  .hover-bg:hover:not(:disabled) {
+    background-color: var(--bg-hover);
+    color: var(--ink);
+  }
+
+  .hover-bg-muted {
+    color: var(--muted);
+  }
+
+  .hover-bg-muted:hover:not(:disabled) {
+    background-color: var(--bg-hover);
+    color: var(--ink);
+  }
+
   .hover-primary {
     transition-property: color, background-color;
     transition-duration: 160ms;
@@ -269,7 +511,7 @@ select:focus-visible {
     background-color: var(--accent-hover);
   }
 
-  /** Brand CTA — Electric Lime (use sparingly) */
+  /** Main CTA — Electric Lime */
   .btn-accent {
     background-color: var(--accent);
     color: var(--ink);
@@ -290,16 +532,18 @@ select:focus-visible {
     cursor: not-allowed;
   }
 
-  /** Primary app CTA — Deep Ink */
+  /** @deprecated Prefer btn-secondary (outlined) */
   .btn-primary {
-    background-color: var(--ink);
-    color: var(--card);
+    background-color: var(--card);
+    color: var(--ink);
+    border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    transition: background-color 160ms ease, opacity 160ms ease;
+    transition: background-color 160ms ease, border-color 160ms ease;
   }
 
   .btn-primary:hover:not(:disabled) {
-    background-color: #2a2a2a;
+    background-color: var(--surface-hover);
+    border-color: var(--border-strong);
   }
 
   .btn-primary:disabled {
@@ -307,23 +551,34 @@ select:focus-visible {
     cursor: not-allowed;
   }
 
+  /** Secondary CTA — outlined */
   .btn-secondary {
     background-color: var(--card);
     color: var(--ink);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    transition: background-color 160ms ease;
+    transition: background-color 160ms ease, border-color 160ms ease;
   }
 
   .btn-secondary:hover:not(:disabled) {
     background-color: var(--surface-hover);
+    border-color: var(--border-strong);
+  }
+
+  .btn-secondary:active:not(:disabled) {
+    transform: translateY(0.5px);
+  }
+
+  .btn-secondary:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 
   .btn-ghost {
     background: transparent;
     color: var(--muted);
     border-radius: var(--radius-sm);
-    transition: background-color 160ms ease, color 160ms ease;
+    transition: background-color var(--motion-base) ease, color var(--motion-base) ease;
   }
 
   .btn-ghost:hover:not(:disabled) {
@@ -331,6 +586,11 @@ select:focus-visible {
     color: var(--ink);
   }
 
+  .btn-ghost:active:not(:disabled) {
+    transform: translateY(0.5px);
+  }
+
+  /** Destructive CTA — Red */
   .btn-danger {
     background-color: var(--danger);
     color: #fff;
@@ -352,11 +612,15 @@ select:focus-visible {
     font-size: 14px;
     color: var(--ink);
     outline: none;
-    transition: border-color 160ms ease;
+    transition: border-color var(--motion-base) ease, background-color var(--motion-base) ease;
   }
 
   .input-field::placeholder {
     color: var(--muted-soft);
+  }
+
+  .input-field:hover:not(:disabled):not(:focus) {
+    border-color: var(--border-strong);
   }
 
   .input-field:focus {
@@ -365,10 +629,21 @@ select:focus-visible {
 
   .input-field:focus-visible {
     outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 12%, transparent);
+  }
+
+  .input-field:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: var(--surface);
   }
 
   .input-field[aria-invalid="true"] {
     border-color: var(--danger);
+  }
+
+  .input-field[aria-invalid="true"]:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 16%, transparent);
   }
 
   .page-title {

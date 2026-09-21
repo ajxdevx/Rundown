@@ -34,6 +34,12 @@ import {
   type ProjectStatus,
   type ProjectTask,
 } from "@/data/projectDetailMock";
+import {
+  seedProjectFiles,
+  seedProjectFinance,
+  seedProjectInvoices,
+  seedProjectMessages,
+} from "@/data/seedWorkspace";
 import { useInitialLoading } from "@/hooks/useInitialLoading";
 import {
   buildCreatedProject,
@@ -45,7 +51,9 @@ import {
 import { appendActivity, useActivity } from "@/lib/activityStore";
 import { backgroundSync } from "@/lib/optimistic";
 import { useProjectModal } from "@/components/ProjectModalProvider";
+import { AppCheckbox } from "@/components/ui/AppCheckbox";
 import type { ProjectFormEditValues } from "@/components/ProjectFormModal";
+import { deadlineLabelFromIso, deadlineToneClass } from "@/lib/deadlineLabel";
 import ActivityList from "./ActivityList";
 import ClientVisibleToggle from "./ClientVisibleToggle";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
@@ -114,9 +122,9 @@ function paymentLabel(state: ProjectDetail["paymentState"]) {
     case "paid":
       return "Paid";
     case "due":
-      return "Due";
+      return "Unpaid";
     case "overdue":
-      return "Overdue";
+      return "Past due";
     case "processing":
       return "Processing";
     case "failed":
@@ -240,133 +248,298 @@ function OverviewTab({
   );
   const { done, total, progress } = progressFromTasks(tasks);
   const nextTasks = tasks.filter((t) => !t.done).slice(0, 3);
+  const currentTask =
+    nextTasks[0]?.name ||
+    (total > 0 ? "All tasks complete" : "No tasks yet");
   const visibleTasks = tasks.filter((t) => t.visibleToClient).length;
   const sharedParts = [
     visibleTasks > 0 ? "Tasks" : null,
     "Files",
     "Messages",
   ].filter(Boolean) as string[];
+  const portalHref = project.portalUrl.startsWith("http")
+    ? project.portalUrl
+    : typeof window !== "undefined"
+      ? `${window.location.origin}${project.portalUrl}`
+      : project.portalUrl;
 
   return (
-    <div className="space-y-5">
-      <section className="card-surface p-5 sm:p-6">
-        <div className="grid grid-cols-3 gap-4 sm:gap-6">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted">
-              Deadline
-            </p>
-            <p
-              className={`mt-2 text-2xl font-semibold tracking-tight sm:text-3xl ${
-                project.overdue ? "text-danger" : "text-ink"
-              }`}
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(17rem,0.9fr)]">
+      {/* Main column */}
+      <div className="min-w-0 space-y-6">
+        {/* Hero — one composition, not a dashboard strip */}
+        <section className="card-surface p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-muted">About this project</p>
+              <p className="mt-2 text-sm leading-relaxed text-ink">
+                {project.description || "No project description yet."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onEdit}
+              className="shrink-0 text-sm font-medium text-muted hover:text-ink"
             >
-              {project.deadlineRelative}
-            </p>
+              Edit
+            </button>
           </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted">
-              Value
-            </p>
-            <p className="mt-2 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-              {formatMoney(project.value, project.currency)}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted">
-              Payment
-            </p>
-            <p
-              className={`mt-2 text-2xl font-semibold tracking-tight sm:text-3xl ${moneyToneClass("paid")}`}
-            >
-              {formatMoney(project.paid, project.currency)}
-            </p>
-          </div>
-        </div>
 
-        <div className="mt-6 border-t border-border pt-5">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted">
-            Project Progress
-          </p>
-          {total === 0 ? (
-            <div className="mt-4">
+          <div className="mt-5">
+            {total === 0 ? (
               <EmptyState
                 icon={Check}
                 title="No tasks yet"
-                description="Add tasks to start tracking project progress."
+                description="Add tasks to start tracking progress on this project."
                 action={{ label: "Add Task", onClick: onGoTasks, icon: Plus }}
                 compact
               />
-            </div>
-          ) : (
-            <>
-              <p className="mt-3 text-4xl font-semibold tracking-tight text-ink sm:text-5xl">
-                {progress}%
-              </p>
+            ) : (
               <ProgressBar
                 value={progress}
-                className="mt-5"
-                meta={
-                  progress >= 100
-                    ? "All project tasks completed."
-                    : `${done} of ${total} tasks completed`
-                }
+                label="Progress"
+                meta={`${progress}% · ${done} of ${total} done`}
               />
-            </>
-          )}
-        </div>
-      </section>
+            )}
+          </div>
 
-      <section className="card-surface p-5">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted">
-          Next Up
-        </p>
-        {nextTasks.length > 0 ? (
-          <ul className="mt-3 space-y-3">
-            {nextTasks.map((task, i) => (
-              <li
-                key={task.id}
-                className={
-                  i < nextTasks.length - 1 ? "border-b border-border pb-3" : ""
-                }
+          <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 border-t border-border pt-5 sm:grid-cols-4">
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium text-muted-soft">
+                Current task
+              </p>
+              <p className="mt-0.5 truncate text-sm font-medium text-ink">
+                {currentTask}
+              </p>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium text-muted-soft">Deadline</p>
+              <p
+                className={`mt-0.5 truncate text-sm font-medium ${deadlineToneClass(
+                  project.deadlineRelative,
+                )}`}
               >
-                <h3 className="text-base font-semibold text-ink">{task.name}</h3>
-                {task.description ? (
-                  <p className="mt-0.5 text-sm text-muted">{task.description}</p>
-                ) : null}
-                <p className="mt-1 text-xs font-medium text-muted-soft">
-                  {i === 0 ? "Next task" : "Upcoming"}
-                </p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <>
-            <h3 className="mt-3 text-lg font-semibold text-ink">
-              You&apos;re all caught up
-            </h3>
-            <p className="mt-1 text-sm text-muted">
-              There are no outstanding tasks for this project.
-            </p>
-          </>
-        )}
-        <button
-          type="button"
-          onClick={onGoTasks}
-          className="mt-4 inline-flex h-9 cursor-pointer items-center rounded-[8px] border border-border px-3.5 text-sm font-medium text-ink hover-soft"
-        >
-          {nextTasks.length > 0 ? "View Tasks" : "Add Task"}
-        </button>
-      </section>
+                {project.deadlineRelative}
+              </p>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium text-muted-soft">Value</p>
+              <p className="mt-0.5 truncate text-sm font-medium text-ink">
+                {formatMoney(project.value, project.currency)}
+              </p>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium text-muted-soft">
+                {project.paid > 0 ? "Collected" : "Outstanding"}
+              </p>
+              <p
+                className={`mt-0.5 truncate text-sm font-medium ${moneyToneClass(
+                  project.paid > 0
+                    ? "collected"
+                    : project.remaining > 0
+                      ? "outstanding"
+                      : "paid",
+                )}`}
+              >
+                {formatMoney(
+                  project.paid > 0 ? project.paid : project.remaining || project.value,
+                  project.currency,
+                )}
+              </p>
+            </div>
+          </div>
+        </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className="card-surface p-5">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted">
-            Project Information
+        {/* Next up — numbered focus list */}
+        <section>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="section-title">Next up</h2>
+            <button
+              type="button"
+              onClick={onGoTasks}
+              className="text-sm font-medium text-muted hover:text-ink"
+            >
+              {nextTasks.length > 0 ? "All tasks" : "Add task"}
+            </button>
+          </div>
+          <div className="card-surface overflow-hidden">
+            {nextTasks.length > 0 ? (
+              <ul>
+                {nextTasks.map((task, i) => (
+                  <li
+                    key={task.id}
+                    className={`flex gap-3 px-5 py-4 ${
+                      i < nextTasks.length - 1 ? "border-b border-border" : ""
+                    }`}
+                  >
+                    <span
+                      className={`flex size-7 shrink-0 items-center justify-center rounded-[8px] text-xs font-semibold ${
+                        i === 0
+                          ? "bg-accent text-ink"
+                          : "bg-surface text-muted"
+                      }`}
+                    >
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-ink">{task.name}</p>
+                      {task.description ? (
+                        <p className="mt-0.5 text-sm text-muted">
+                          {task.description}
+                        </p>
+                      ) : null}
+                    </div>
+                    {i === 0 ? (
+                      <span className="shrink-0 self-start text-[11px] font-medium text-muted-soft">
+                        Focus
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState
+                icon={Check}
+                title="You're all caught up"
+                description="No outstanding tasks for this project."
+                action={{
+                  label: "Add Task",
+                  onClick: onGoTasks,
+                  icon: Plus,
+                }}
+                compact
+              />
+            )}
+          </div>
+        </section>
+
+        {/* Activity */}
+        <section>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="section-title">Activity</h2>
+            {activity.length > 0 ? (
+              <Link
+                href={`/activity?project=${encodeURIComponent(project.slug)}`}
+                className="text-sm font-medium text-muted hover:text-ink"
+              >
+                View all
+              </Link>
+            ) : null}
+          </div>
+          <div className="card-surface overflow-hidden">
+            <ActivityList
+              items={activity}
+              limit={5}
+              showGroups={false}
+              compact
+              bare
+              emptyTitle="No activity yet"
+              emptyDescription="Project activity will appear here as work gets moving."
+            />
+          </div>
+        </section>
+      </div>
+
+      {/* Side rail */}
+      <aside className="min-w-0 space-y-4 lg:sticky lg:top-20 lg:self-start">
+        {/* Portal spotlight */}
+        <section className="overflow-hidden rounded-[var(--radius-md)] border border-accent/35 bg-accent-soft/50 p-5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-ink">Client portal</p>
+            <StatusBadge
+              label="Live"
+              tone={projectStatusTone("active")}
+              icon={projectStatusIcon("active")}
+            />
+          </div>
+          <p className="mt-2 text-sm leading-relaxed text-ink/80">
+            {sharedParts.length > 0
+              ? `Sharing ${sharedParts.join(", ").toLowerCase()} with your client.`
+              : "Nothing is visible to the client yet."}
           </p>
-          <dl className="mt-4 space-y-3 text-sm">
-            <div className="flex justify-between gap-4">
+          <p className="mt-1.5 text-xs text-muted">
+            Last viewed {project.lastPortalView}
+          </p>
+          <div className="mt-4 flex flex-col gap-2">
+            <a
+              href={portalHref}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-[8px] btn-secondary px-3.5 text-sm font-medium"
+            >
+              <ExternalLink className="size-3.5" strokeWidth={1.75} />
+              Open portal
+            </a>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onCopyLink}
+                className="inline-flex h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[8px] border border-border bg-card px-3 text-sm font-medium text-ink hover-soft"
+              >
+                <Copy className="size-3.5" strokeWidth={1.75} />
+                Copy link
+              </button>
+              <button
+                type="button"
+                onClick={onSharePortal}
+                className="inline-flex h-9 flex-1 cursor-pointer items-center justify-center rounded-[8px] border border-border bg-card px-3 text-sm font-medium text-ink hover-soft"
+              >
+                Share
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Payment snapshot */}
+        <section className="card-surface p-5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-ink">Payment</p>
+            <StatusBadge
+              label={paymentLabel(project.paymentState)}
+              tone={paymentStatusTone(project.paymentState)}
+              icon={paymentStatusIcon(project.paymentState)}
+            />
+          </div>
+          <div className="mt-4 space-y-2.5 text-sm">
+            <div className="flex justify-between gap-3">
+              <span className="text-muted">Total</span>
+              <span className="font-medium text-ink">
+                {formatMoney(project.value, project.currency)}
+              </span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted">Collected</span>
+              <span className={`font-medium ${moneyToneClass("collected")}`}>
+                {formatMoney(project.paid, project.currency)}
+              </span>
+            </div>
+            <div className="flex justify-between gap-3 border-t border-border pt-2.5">
+              <span className="text-muted">Left</span>
+              <span
+                className={`font-medium ${moneyToneClass(
+                  project.remaining > 0 ? "outstanding" : "paid",
+                )}`}
+              >
+                {formatMoney(project.remaining, project.currency)}
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onGoInvoices}
+            className="mt-4 inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-[8px] border border-border px-3.5 text-sm font-medium text-ink hover-soft"
+          >
+            View invoices
+          </button>
+        </section>
+
+        {/* Quick facts */}
+        <section className="card-surface p-5">
+          <p className="text-sm font-semibold text-ink">Details</p>
+          <dl className="mt-3 space-y-3 text-sm">
+            <div className="flex justify-between gap-3">
               <dt className="text-muted">Client</dt>
-              <dd className="font-medium text-ink">
+              <dd className="truncate font-medium text-ink">
                 {project.clientId && project.client ? (
                   <Link
                     href={`/clients/${project.clientId}`}
@@ -379,162 +552,19 @@ function OverviewTab({
                 )}
               </dd>
             </div>
-            <div className="flex justify-between gap-4">
+            <div className="flex justify-between gap-3">
               <dt className="text-muted">Status</dt>
               <dd className="font-medium text-ink">
                 {statusLabel(project.status)}
               </dd>
             </div>
-            <div className="flex justify-between gap-4">
+            <div className="flex justify-between gap-3">
               <dt className="text-muted">Created</dt>
               <dd className="font-medium text-ink">{project.createdAt}</dd>
             </div>
           </dl>
         </section>
-
-        <section className="card-surface p-5">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted">
-            Payment
-          </p>
-          <div className="mt-4 space-y-2.5">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted">Total</span>
-              <span className="font-semibold text-ink">
-                {formatMoney(project.value, project.currency)}
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted">Paid</span>
-              <span
-                className={`font-semibold ${moneyToneClass("paid")}`}
-              >
-                {formatMoney(project.paid, project.currency)}
-              </span>
-            </div>
-            <div className="flex justify-between border-t border-border pt-2.5 text-sm">
-              <span className="text-muted">Outstanding</span>
-              <span
-                className={`font-semibold ${moneyToneClass(
-                  project.remaining > 0 ? "outstanding" : "paid",
-                )}`}
-              >
-                {formatMoney(project.remaining, project.currency)}
-              </span>
-            </div>
-          </div>
-          <div className="mt-3">
-            <StatusBadge
-              label={paymentLabel(project.paymentState)}
-              tone={paymentStatusTone(project.paymentState)}
-              icon={paymentStatusIcon(project.paymentState)}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={onGoInvoices}
-            className="mt-4 inline-flex h-9 cursor-pointer items-center rounded-[8px] border border-border px-3.5 text-sm font-medium text-ink hover-soft"
-          >
-            View Invoices
-          </button>
-        </section>
-      </div>
-
-      <section className="card-surface overflow-hidden p-0">
-        <div className="flex items-center justify-between gap-3 px-5 pt-5">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted">
-            Recent Activity
-          </p>
-          {activity.length > 0 ? (
-            <Link
-              href={`/activity?project=${encodeURIComponent(project.slug)}`}
-              className="text-xs font-medium text-muted hover:text-ink"
-            >
-              View all activity
-            </Link>
-          ) : null}
-        </div>
-        <div className="mt-3">
-          <ActivityList
-            items={activity}
-            limit={6}
-            showGroups={false}
-            compact
-            bare
-            emptyTitle="No activity yet"
-            emptyDescription="Project activity will appear here as work gets moving."
-          />
-        </div>
-      </section>
-
-      <section className="card-surface p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted">
-            Client Portal
-          </p>
-          <StatusBadge
-            label="Active"
-            tone={projectStatusTone("active")}
-            icon={projectStatusIcon("active")}
-          />
-        </div>
-        <p className="mt-3 text-sm text-ink">
-          Visible to client:{" "}
-          {sharedParts.length > 0 ? sharedParts.join(", ") : "Nothing yet"}
-        </p>
-        <p className="mt-1 text-sm text-muted">
-          Last viewed {project.lastPortalView}
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <a
-            href={
-              project.portalUrl.startsWith("http")
-                ? project.portalUrl
-                : typeof window !== "undefined"
-                  ? `${window.location.origin}${project.portalUrl}`
-                  : project.portalUrl
-            }
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-[8px] btn-primary px-3.5 text-sm font-medium"
-          >
-            <ExternalLink className="size-3.5" strokeWidth={1.75} />
-            Open Portal
-          </a>
-          <button
-            type="button"
-            onClick={onCopyLink}
-            className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-[8px] border border-border px-3.5 text-sm font-medium text-ink hover-soft"
-          >
-            <Copy className="size-3.5" strokeWidth={1.75} />
-            Copy Link
-          </button>
-          <button
-            type="button"
-            onClick={onSharePortal}
-            className="inline-flex h-9 cursor-pointer items-center rounded-[8px] border border-border px-3.5 text-sm font-medium text-ink hover-soft"
-          >
-            Share Portal
-          </button>
-        </div>
-      </section>
-
-      <section className="card-surface p-5">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted">
-            Project Summary
-          </p>
-          <button
-            type="button"
-            onClick={onEdit}
-            className="text-xs font-medium text-muted hover:text-ink"
-          >
-            Edit Project
-          </button>
-        </div>
-        <p className="mt-3 text-sm leading-relaxed text-ink">
-          {project.description || "No project description"}
-        </p>
-      </section>
+      </aside>
     </div>
   );
 }
@@ -740,7 +770,7 @@ function TasksTab({
             <button
               type="button"
               onClick={addTask}
-              className="h-9 rounded-[8px] btn-primary px-4 text-sm font-medium"
+              className="h-9 rounded-[8px] btn-secondary px-4 text-sm font-medium"
             >
               Add Task
             </button>
@@ -793,13 +823,9 @@ function TasksTab({
                   type="button"
                   onClick={() => toggleDone(task.id)}
                   aria-label={task.done ? "Mark incomplete" : "Mark complete"}
-                  className={`mt-0.5 flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-[6px] border transition-colors ${
-                    task.done
-                      ? "border-ink bg-ink text-card"
-                      : "border-border bg-transparent text-transparent hover:border-ink"
-                  }`}
+                  className="mt-0.5 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ink/20"
                 >
-                  <Check className="size-3" strokeWidth={3} />
+                  <AppCheckbox checked={task.done} />
                 </button>
                 <div className="min-w-0 flex-1">
                   {editingId === task.id ? (
@@ -821,7 +847,7 @@ function TasksTab({
                         <button
                           type="button"
                           onClick={saveEdit}
-                          className="h-8 rounded-[8px] btn-primary px-3 text-xs font-semibold"
+                          className="h-8 rounded-[8px] btn-secondary px-3 text-xs font-semibold"
                         >
                           Save
                         </button>
@@ -901,12 +927,19 @@ type FileRow = ProjectFile & {
 };
 
 function FilesTab({
+  projectSlug,
   onActivity,
 }: {
+  projectSlug: string;
   onActivity?: (text: string, category: ProjectActivity["category"]) => void;
 }) {
   const toast = useToastOptional();
-  const [files, setFiles] = useState<FileRow[]>([]);
+  const [files, setFiles] = useState<FileRow[]>(() =>
+    (seedProjectFiles[projectSlug] ?? []).map((f) => ({
+      ...f,
+      uploadStatus: "ready" as const,
+    })),
+  );
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -1338,7 +1371,7 @@ function InvoicesTab({
                 value={status}
                 onChange={(v) => setStatus(v as ProjectInvoice["status"])}
                 options={[
-                  { value: "due", label: "Due" },
+                  { value: "due", label: "Unpaid" },
                   { value: "paid", label: "Paid" },
                   { value: "overdue", label: "Overdue" },
                   { value: "processing", label: "Processing" },
@@ -1362,7 +1395,7 @@ function InvoicesTab({
             <button
               type="button"
               onClick={createInvoice}
-              className="h-9 rounded-[8px] btn-primary px-4 text-sm font-medium"
+              className="h-9 rounded-[8px] btn-secondary px-4 text-sm font-medium"
             >
               Create Invoice
             </button>
@@ -1460,12 +1493,16 @@ type LocalMessage = ProjectMessage & {
 };
 
 function MessagesTab({
+  projectSlug,
   onActivity,
 }: {
+  projectSlug: string;
   onActivity?: (text: string, category: ProjectActivity["category"]) => void;
 }) {
   const [draft, setDraft] = useState("");
-  const [messages, setMessages] = useState<LocalMessage[]>([]);
+  const [messages, setMessages] = useState<LocalMessage[]>(() =>
+    structuredClone(seedProjectMessages[projectSlug] ?? []),
+  );
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -1600,6 +1637,33 @@ function mapCreated(
   const total = created.tasks.length;
   const progress = total ? Math.round((done / total) * 100) : 0;
   const next = created.tasks.find((t) => !t.done);
+  const finance = seedProjectFinance[created.slug];
+  const paid = finance?.paid ?? 0;
+  const value = created.value ?? 0;
+  const remaining = Math.max(0, value - paid);
+  const paymentState =
+    finance?.paymentStatus === "paid"
+      ? ("paid" as const)
+      : finance?.paymentStatus === "overdue"
+        ? ("overdue" as const)
+        : finance?.paymentStatus === "processing"
+          ? ("processing" as const)
+          : finance?.paymentStatus === "failed"
+            ? ("failed" as const)
+            : remaining > 0
+              ? ("due" as const)
+              : ("paid" as const);
+  const deadlineRelative = created.deadline
+    ? deadlineLabelFromIso(created.deadline)
+    : "No deadline";
+  const overdue = deadlineRelative.toLowerCase().includes("overdue");
+  const status: ProjectStatus =
+    created.status === "draft" ||
+    created.status === "on-hold" ||
+    created.status === "completed" ||
+    created.status === "archived"
+      ? created.status
+      : "active";
 
   return {
     project: {
@@ -1610,12 +1674,12 @@ function mapCreated(
       clientId: created.clientId || "",
       clientEmail: created.clientEmail,
       description: created.description,
-      status: created.status === "draft" ? "draft" : "active",
-      value: created.value ?? 0,
+      status,
+      value,
       currency: created.currency,
-      paid: 0,
-      remaining: created.value ?? 0,
-      paymentState: created.value && created.value > 0 ? "due" : "paid",
+      paid,
+      remaining,
+      paymentState,
       progress,
       tasksCompleted: done,
       tasksTotal: total,
@@ -1627,16 +1691,20 @@ function mapCreated(
           })
         : "No deadline set",
       deadlineLabel: created.deadline || "No deadline set",
-      deadlineRelative: created.deadline ? "Deadline set" : "No deadline set",
+      deadlineRelative,
       daysRemaining: 0,
-      overdue: false,
+      overdue,
       nextUp: next
-        ? { title: next.name, description: created.description || "" }
+        ? { title: next.name, description: next.description || "" }
         : null,
-      portalUrl: `${typeof window !== "undefined" ? window.location.origin : ""}${created.portalPath}`,
-      lastPortalView: "Never",
-      createdAt: "Just now",
-      updatedAt: "Just now",
+      portalUrl: created.portalPath,
+      lastPortalView: "12 min ago",
+      createdAt: new Date(created.createdAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+      updatedAt: created.updatedAt || created.createdAt,
     },
     tasks: created.tasks.map((t) => ({
       id: t.id,
@@ -1721,7 +1789,9 @@ export default function ProjectDetailPage({
       const mapped = mapCreated(created);
       setProject(mapped.project);
       setTasks(mapped.tasks);
-      setInvoices([]);
+      setInvoices(
+        structuredClone(seedProjectInvoices[created.slug] ?? []),
+      );
       setIsCreated(true);
       setFound(true);
     } else {
@@ -1951,8 +2021,8 @@ export default function ProjectDetailPage({
         ]}
       />
 
-      <div className="w-full flex-1 px-4 py-6 sm:px-6 md:px-8">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div className="w-full flex-1 px-4 py-6 sm:px-6 md:px-8 md:py-8">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="page-title">{live.name}</h1>
@@ -1975,11 +2045,11 @@ export default function ProjectDetailPage({
                 {live.client}
               </Link>
             ) : (
-              <p className="mt-1.5 text-sm text-muted">No client</p>
+              <p className="mt-1.5 text-sm text-muted">No client assigned</p>
             )}
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2 self-start">
             <button
               type="button"
               onClick={() => setShareOpen(true)}
@@ -1994,7 +2064,7 @@ export default function ProjectDetailPage({
                 aria-expanded={menuOpen}
                 onClick={() => setMenuOpen((v) => !v)}
                 className={`flex size-10 cursor-pointer items-center justify-center rounded-[8px] text-muted ${
-                  menuOpen ? "bg-surface text-ink" : "hover-soft"
+                  menuOpen ? "bg-surface text-ink" : "hover-bg"
                 }`}
               >
                 <MoreHorizontal className="size-5" strokeWidth={1.75} />
@@ -2014,7 +2084,7 @@ export default function ProjectDetailPage({
         <div
           role="tablist"
           aria-label="Project sections"
-          className="mt-6 flex gap-1 overflow-x-auto border-b border-border"
+          className="mb-6 flex gap-1 overflow-x-auto border-b border-border"
         >
           {TABS.map((t) => {
             const selected = tab === t.id;
@@ -2026,7 +2096,7 @@ export default function ProjectDetailPage({
                 aria-selected={selected}
                 id={`tab-${t.id}`}
                 onClick={() => setTab(t.id)}
-                className={`relative shrink-0 cursor-pointer px-4 py-3.5 text-sm font-medium transition-colors ${
+                className={`relative shrink-0 cursor-pointer px-4 py-3 text-sm font-medium transition-colors ${
                   selected ? "text-ink" : "text-muted hover:text-ink"
                 }`}
               >
@@ -2039,7 +2109,7 @@ export default function ProjectDetailPage({
           })}
         </div>
 
-        <div role="tabpanel" aria-labelledby={`tab-${tab}`} className="py-6">
+        <div role="tabpanel" aria-labelledby={`tab-${tab}`}>
           {tab === "overview" && (
             <OverviewTab
               project={live}
@@ -2058,7 +2128,12 @@ export default function ProjectDetailPage({
               onActivity={pushActivity}
             />
           )}
-          {tab === "files" && <FilesTab onActivity={pushActivity} />}
+          {tab === "files" && (
+            <FilesTab
+              projectSlug={live.slug}
+              onActivity={pushActivity}
+            />
+          )}
           {tab === "invoices" && (
             <InvoicesTab
               invoices={invoices}
@@ -2067,7 +2142,12 @@ export default function ProjectDetailPage({
               onActivity={pushActivity}
             />
           )}
-          {tab === "messages" && <MessagesTab onActivity={pushActivity} />}
+          {tab === "messages" && (
+            <MessagesTab
+              projectSlug={live.slug}
+              onActivity={pushActivity}
+            />
+          )}
         </div>
       </div>
 
