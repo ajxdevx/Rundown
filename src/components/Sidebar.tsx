@@ -5,29 +5,50 @@ import Link from "next/link";
 import {
   Activity,
   Bell,
+  Check,
   ChevronDown,
   ChevronsUpDown,
   CreditCard,
   FolderKanban,
+  GripVertical,
   LayoutDashboard,
   LogOut,
   Plus,
+  Settings,
   Sparkles,
   Users,
   Zap,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { activeProjects } from "@/data/dashboardMock";
-import { projectDetail } from "@/data/projectDetailMock";
-import { getAllClients } from "@/lib/clientsStore";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
+import { getAllClients, CLIENTS_CHANGED } from "@/lib/clientsStore";
 import { getCreatedProjects } from "@/lib/createProject";
 import { useBilling } from "@/lib/billingStore";
 import { mockSignOut } from "@/lib/mockAuth";
 import { useUnreadBadge } from "@/lib/notificationsStore";
+import { useProfileSettings } from "@/lib/settingsStore";
+import {
+  DEFAULT_WORKSPACE_ID,
+  WORKSPACE_CHANGED,
+  getActiveWorkspace,
+  getActiveWorkspaceId,
+  getWorkspaces,
+  setActiveWorkspace,
+  workspaceInitials,
+} from "@/lib/workspaceStore";
 import AccountMenu from "./AccountMenu";
+import CreateWorkspaceModal from "./CreateWorkspaceModal";
 import { Avatar } from "./ui/Avatar";
 import { useAuth } from "./AuthProvider";
+import { useClientModalOptional } from "./ClientModalProvider";
+import { useProjectModalOptional } from "./ProjectModalProvider";
 
 const WORKSPACE_NAV = [
   { href: "/notifications", label: "Notifications", icon: Bell },
@@ -66,7 +87,10 @@ function NavItem({
       <Icon className="size-4 shrink-0 opacity-80" strokeWidth={1.75} />
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {badge && badge > 0 ? (
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-ink px-1.5 text-[10px] font-semibold text-card">
+        <span
+          className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold tabular-nums text-ink"
+          aria-label={`${badge > 9 ? "9 or more" : badge} unread`}
+        >
           {badge > 9 ? "9+" : badge}
         </span>
       ) : null}
@@ -94,6 +118,32 @@ function NestedLink({
     >
       {label}
     </Link>
+  );
+}
+
+function Collapsible({
+  open,
+  children,
+  className,
+}: {
+  open: boolean;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`grid transition-[grid-template-rows,opacity] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
+        open
+          ? "grid-rows-[1fr] opacity-100"
+          : "pointer-events-none grid-rows-[0fr] opacity-0"
+      }`}
+      aria-hidden={!open}
+      inert={!open ? true : undefined}
+    >
+      <div className="min-h-0 overflow-hidden">
+        <div className={className}>{children}</div>
+      </div>
+    </div>
   );
 }
 
@@ -146,28 +196,49 @@ function ExpandableSection({
           className="mr-1 flex size-7 cursor-pointer items-center justify-center rounded-[6px] text-muted outline-none hover:bg-surface-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-ink/20"
         >
           <ChevronDown
-            className={`size-3.5 transition-transform duration-150 ${
+            className={`size-3.5 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
               open ? "rotate-0" : "-rotate-90"
             }`}
             strokeWidth={2}
           />
         </button>
       </div>
-      {open ? (
+      <Collapsible open={open}>
         <div className="ml-4 mt-0.5 flex flex-col border-l border-border pl-2.5">
           <div className="scrollbar-hide max-h-[132px] space-y-0.5 overflow-y-auto overscroll-contain">
             {list}
           </div>
           <div className="shrink-0 space-y-0.5">{footer}</div>
         </div>
-      ) : null}
+      </Collapsible>
     </div>
   );
 }
 
 function WorkspaceSwitcher() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [workspaces, setWorkspaces] = useState(() =>
+    typeof window !== "undefined" ? getWorkspaces() : [],
+  );
+  const [activeId, setActiveId] = useState(() =>
+    typeof window !== "undefined"
+      ? getActiveWorkspaceId()
+      : DEFAULT_WORKSPACE_ID,
+  );
   const ref = useRef<HTMLDivElement>(null);
+
+  const refresh = () => {
+    setWorkspaces(getWorkspaces());
+    setActiveId(getActiveWorkspaceId());
+  };
+
+  useEffect(() => {
+    refresh();
+    window.addEventListener(WORKSPACE_CHANGED, refresh);
+    return () => window.removeEventListener(WORKSPACE_CHANGED, refresh);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -185,6 +256,19 @@ function WorkspaceSwitcher() {
     };
   }, [open]);
 
+  const active =
+    workspaces.find((w) => w.id === activeId) ?? workspaces[0] ?? null;
+
+  const switchTo = (id: string) => {
+    if (id === activeId) {
+      setOpen(false);
+      return;
+    }
+    setActiveWorkspace(id);
+    setOpen(false);
+    router.push("/");
+  };
+
   return (
     <div className="relative px-3 pb-3" ref={ref}>
       <p className="mb-1.5 px-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-soft">
@@ -194,15 +278,25 @@ function WorkspaceSwitcher() {
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-label="Switch workspace"
         onClick={() => setOpen((v) => !v)}
         className="flex w-full cursor-pointer items-center gap-2.5 rounded-[8px] border border-border bg-card px-2.5 py-2 text-left outline-none transition-colors hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-ink/20"
       >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-[6px] bg-surface-strong text-[11px] font-semibold text-ink">
-          AS
+        <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-surface-strong text-[11px] font-semibold text-ink">
+          {active?.logoDataUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={active.logoDataUrl}
+              alt=""
+              className="size-full object-cover"
+            />
+          ) : (
+            workspaceInitials(active?.name ?? "WS")
+          )}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-ink">
-            Acme Studio
+            {active?.name ?? "Workspace"}
           </span>
         </span>
         <ChevronsUpDown
@@ -211,40 +305,85 @@ function WorkspaceSwitcher() {
         />
       </button>
       {open ? (
-        <ul
+        <div
           role="listbox"
+          aria-label="Workspaces"
           className="absolute left-3 right-3 z-50 mt-1.5 overflow-hidden rounded-[12px] border border-border bg-card p-1.5 shadow-[var(--shadow-popover)]"
         >
-          <li>
+          <ul className="max-h-56 space-y-0.5 overflow-y-auto">
+            {workspaces.map((ws) => {
+              const selected = ws.id === activeId;
+              return (
+                <li key={ws.id}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    onClick={() => switchTo(ws.id)}
+                    className={`flex w-full cursor-pointer items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-ink/20 ${
+                      selected
+                        ? "bg-accent-soft font-medium text-ink"
+                        : "text-muted hover-soft hover:text-ink"
+                    }`}
+                  >
+                    <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-surface text-[10px] font-semibold text-ink">
+                      {ws.logoDataUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={ws.logoDataUrl}
+                          alt=""
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        workspaceInitials(ws.name)
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{ws.name}</span>
+                    {selected ? (
+                      <Check
+                        className="size-3.5 shrink-0 text-ink"
+                        strokeWidth={2.25}
+                      />
+                    ) : null}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="mt-1 border-t border-border pt-1">
             <button
               type="button"
-              role="option"
-              aria-selected
-              onClick={() => setOpen(false)}
-              className="flex w-full cursor-pointer items-center gap-2.5 rounded-[8px] bg-accent-soft px-2.5 py-2 text-left text-sm font-medium text-ink"
+              onClick={() => {
+                setOpen(false);
+                setCreateOpen(true);
+              }}
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-sm font-medium text-ink hover-soft"
             >
-              <span className="flex size-7 items-center justify-center rounded-[6px] bg-ink text-[10px] font-semibold text-card">
-                AS
+              <span className="flex size-7 items-center justify-center rounded-[6px] bg-surface text-ink">
+                <Plus className="size-3.5" strokeWidth={2.25} />
               </span>
-              Acme Studio
+              Create Workspace
             </button>
-          </li>
-          <li>
             <button
               type="button"
-              role="option"
-              aria-selected={false}
-              onClick={() => setOpen(false)}
-              className="flex w-full cursor-pointer items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-sm text-muted hover-soft"
+              onClick={() => {
+                setOpen(false);
+                router.push("/settings/workspace");
+              }}
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-sm font-medium text-ink hover-soft"
             >
-              <span className="flex size-7 items-center justify-center rounded-[6px] bg-surface text-[10px] font-semibold text-ink">
-                +
+              <span className="flex size-7 items-center justify-center rounded-[6px] bg-surface text-ink">
+                <Settings className="size-3.5" strokeWidth={1.75} />
               </span>
-              Add workspace
+              Workspace Settings
             </button>
-          </li>
-        </ul>
+          </div>
+        </div>
       ) : null}
+      <CreateWorkspaceModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+      />
     </div>
   );
 }
@@ -271,8 +410,14 @@ function UpgradeCard() {
   );
 }
 
+
 const NAV_EXPAND_KEY = "dueso:nav-expand";
+const CATEGORY_EXPAND_KEY = "dueso:nav-categories";
+const SIDEBAR_WIDTH_KEY = "dueso:sidebar-width";
 const SIDEBAR_LIST_LIMIT = 3;
+const SIDEBAR_DEFAULT_WIDTH = 248;
+const SIDEBAR_MIN_WIDTH = SIDEBAR_DEFAULT_WIDTH;
+const SIDEBAR_MAX_WIDTH = 400;
 
 function readExpandState(pathname: string) {
   const defaults = {
@@ -304,21 +449,102 @@ function writeExpandState(next: { projects: boolean; clients: boolean }) {
   }
 }
 
+function readCategoryState() {
+  const defaults = { main: true, workspace: true };
+  if (typeof window === "undefined") return defaults;
+  try {
+    const raw = sessionStorage.getItem(CATEGORY_EXPAND_KEY);
+    if (!raw) return defaults;
+    const parsed = JSON.parse(raw) as { main?: boolean; workspace?: boolean };
+    return {
+      main: parsed.main ?? defaults.main,
+      workspace: parsed.workspace ?? defaults.workspace,
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+function writeCategoryState(next: { main: boolean; workspace: boolean }) {
+  try {
+    sessionStorage.setItem(CATEGORY_EXPAND_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+}
+
+function readSidebarWidth() {
+  if (typeof window === "undefined") return SIDEBAR_DEFAULT_WIDTH;
+  try {
+    const raw = localStorage.getItem(SIDEBAR_WIDTH_KEY);
+    if (!raw) return SIDEBAR_DEFAULT_WIDTH;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return SIDEBAR_DEFAULT_WIDTH;
+    return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, n));
+  } catch {
+    return SIDEBAR_DEFAULT_WIDTH;
+  }
+}
+
+function writeSidebarWidth(width: number) {
+  try {
+    localStorage.setItem(SIDEBAR_WIDTH_KEY, String(width));
+  } catch {
+    /* ignore */
+  }
+}
+
+function CategoryHeader({
+  label,
+  open,
+  onToggle,
+}: {
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-expanded={open}
+      aria-label={open ? `Collapse ${label}` : `Expand ${label}`}
+      onClick={onToggle}
+      className="mb-1.5 flex w-fit max-w-full cursor-pointer items-center gap-1 rounded-[6px] px-2.5 py-0.5 text-left outline-none transition-colors hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-ink/20"
+    >
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-soft">
+        {label}
+      </span>
+      <ChevronDown
+        className={`size-3.5 shrink-0 text-muted-soft transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
+          open ? "rotate-0" : "-rotate-90"
+        }`}
+        strokeWidth={2}
+        aria-hidden
+      />
+    </button>
+  );
+}
+
 export default function Sidebar() {
   const pathname = usePathname();
+  const projectModal = useProjectModalOptional();
+  const clientModal = useClientModalOptional();
   const router = useRouter();
   const { profile, user } = useAuth();
   const unreadCount = useUnreadBadge();
   const { isPro } = useBilling();
+  const profileSettings = useProfileSettings();
 
-  const [projectsOpen, setProjectsOpen] = useState(() => {
-    const stored = readExpandState(pathname);
-    return stored.projects || pathname.startsWith("/projects");
-  });
-  const [clientsOpen, setClientsOpen] = useState(() => {
-    const stored = readExpandState(pathname);
-    return stored.clients || pathname.startsWith("/clients");
-  });
+  const [projectsOpen, setProjectsOpen] = useState(() =>
+    pathname.startsWith("/projects"),
+  );
+  const [clientsOpen, setClientsOpen] = useState(() =>
+    pathname.startsWith("/clients"),
+  );
+  const [mainOpen, setMainOpen] = useState(true);
+  const [workspaceOpen, setWorkspaceOpen] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const [resizing, setResizing] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [navProjects, setNavProjects] = useState<
     { name: string; slug: string }[]
@@ -326,7 +552,22 @@ export default function Sidebar() {
   const [navClients, setNavClients] = useState<
     { id: string; name: string }[]
   >([]);
+  const resizeRef = useRef<{ startX: number; startWidth: number } | null>(
+    null,
+  );
 
+  useEffect(() => {
+    const cats = readCategoryState();
+    setMainOpen(cats.main);
+    setWorkspaceOpen(cats.workspace);
+    setSidebarWidth(readSidebarWidth());
+  }, []);
+
+  useEffect(() => {
+    const stored = readExpandState(pathname);
+    setProjectsOpen(stored.projects || pathname.startsWith("/projects"));
+    setClientsOpen(stored.clients || pathname.startsWith("/clients"));
+  }, [pathname]);
   useEffect(() => {
     const onProjects = pathname.startsWith("/projects");
     const onClients = pathname.startsWith("/clients");
@@ -350,47 +591,122 @@ export default function Sidebar() {
     });
   };
 
-  useEffect(() => {
-    const created = getCreatedProjects();
-    const list = [
-      ...created.map((p) => ({ name: p.name, slug: p.slug })),
-      { name: projectDetail.name, slug: projectDetail.slug },
-      ...activeProjects.map((p) => ({ name: p.name, slug: p.slug })),
-    ];
-    const seen = new Set<string>();
-    const unique: { name: string; slug: string }[] = [];
-    for (const item of list) {
-      const key = `${item.slug}:${item.name}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      unique.push(item);
-      if (unique.length >= SIDEBAR_LIST_LIMIT) break;
-    }
-    if (unique.length < SIDEBAR_LIST_LIMIT) {
-      for (const extra of [
-        { name: "Brand Identity", slug: projectDetail.slug },
-        { name: "Mobile App", slug: projectDetail.slug },
-      ]) {
-        if (unique.length >= SIDEBAR_LIST_LIMIT) break;
-        if (!unique.some((u) => u.name === extra.name)) unique.push(extra);
-      }
-    }
-    setNavProjects(unique.slice(0, SIDEBAR_LIST_LIMIT));
+  const toggleMain = () => {
+    setMainOpen((v) => {
+      const next = !v;
+      writeCategoryState({ main: next, workspace: workspaceOpen });
+      return next;
+    });
+  };
 
-    const all = getAllClients();
-    const curated: { id: string; name: string }[] = [];
-    const c1 = all.find((c) => c.id === "c1");
-    if (c1?.company) curated.push({ id: c1.id, name: c1.company });
-    for (const c of all) {
-      if (curated.length >= SIDEBAR_LIST_LIMIT) break;
-      if (!curated.some((x) => x.id === c.id && x.name === c.name)) {
-        curated.push({ id: c.id, name: c.name });
+  const toggleWorkspace = () => {
+    setWorkspaceOpen((v) => {
+      const next = !v;
+      writeCategoryState({ main: mainOpen, workspace: next });
+      return next;
+    });
+  };
+
+  const onResizePointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLButtonElement>) => {
+      e.preventDefault();
+      resizeRef.current = { startX: e.clientX, startWidth: sidebarWidth };
+      setResizing(true);
+      e.currentTarget.setPointerCapture(e.pointerId);
+    },
+    [sidebarWidth],
+  );
+
+  const onResizePointerMove = useCallback(
+    (e: ReactPointerEvent<HTMLButtonElement>) => {
+      if (!resizeRef.current) return;
+      const delta = e.clientX - resizeRef.current.startX;
+      const next = Math.min(
+        SIDEBAR_MAX_WIDTH,
+        Math.max(SIDEBAR_MIN_WIDTH, resizeRef.current.startWidth + delta),
+      );
+      setSidebarWidth(next);
+    },
+    [],
+  );
+
+  const onResizePointerUp = useCallback(
+    (e: ReactPointerEvent<HTMLButtonElement>) => {
+      if (!resizeRef.current) return;
+      const delta = e.clientX - resizeRef.current.startX;
+      const next = Math.min(
+        SIDEBAR_MAX_WIDTH,
+        Math.max(SIDEBAR_MIN_WIDTH, resizeRef.current.startWidth + delta),
+      );
+      resizeRef.current = null;
+      setResizing(false);
+      setSidebarWidth(next);
+      writeSidebarWidth(next);
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
       }
-    }
-    setNavClients(curated.slice(0, SIDEBAR_LIST_LIMIT));
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!resizing) return;
+    const prev = document.body.style.cursor;
+    const prevSelect = document.body.style.userSelect;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    return () => {
+      document.body.style.cursor = prev;
+      document.body.style.userSelect = prevSelect;
+    };
+  }, [resizing]);
+
+  useEffect(() => {
+    const refreshNav = () => {
+      const created = getCreatedProjects();
+      const unique: { name: string; slug: string }[] = [];
+      for (const p of created) {
+        if (!p.slug) continue;
+        unique.push({ name: p.name, slug: p.slug });
+        if (unique.length >= SIDEBAR_LIST_LIMIT) break;
+      }
+      setNavProjects(unique);
+
+      const curated: { id: string; name: string }[] = [];
+      for (const c of getAllClients()) {
+        if (curated.length >= SIDEBAR_LIST_LIMIT) break;
+        curated.push({
+          id: c.id,
+          name: c.company?.trim() || c.name,
+        });
+      }
+      setNavClients(curated);
+    };
+
+    refreshNav();
+    window.addEventListener(CLIENTS_CHANGED, refreshNav);
+    window.addEventListener("dueso:projects-changed", refreshNav);
+    window.addEventListener(WORKSPACE_CHANGED, refreshNav);
+    return () => {
+      window.removeEventListener(CLIENTS_CHANGED, refreshNav);
+      window.removeEventListener("dueso:projects-changed", refreshNav);
+      window.removeEventListener(WORKSPACE_CHANGED, refreshNav);
+    };
   }, [pathname]);
 
+  const [wsName, setWsName] = useState("Acme Studio");
+
+  useEffect(() => {
+    const sync = () => setWsName(getActiveWorkspace().name);
+    sync();
+    window.addEventListener(WORKSPACE_CHANGED, sync);
+    return () => window.removeEventListener(WORKSPACE_CHANGED, sync);
+  }, []);
+
   const displayName =
+    profileSettings.fullName ||
     profile?.display_name ||
     profile?.username ||
     (user?.user_metadata?.full_name as string | undefined) ||
@@ -406,20 +722,16 @@ export default function Sidebar() {
   const projectActive = isActive("/projects");
   const clientActive = isActive("/clients");
 
-  const showcaseProjects = useMemo(
-    () =>
-      navProjects.length > 0
-        ? navProjects
-        : [
-            { name: "Website Redesign", slug: "acme-website-redesign" },
-            { name: "Brand Identity", slug: "acme-website-redesign" },
-            { name: "Mobile App", slug: "acme-website-redesign" },
-          ],
-    [navProjects],
-  );
+  const projectPathMatch = (slug: string) => {
+    const base = `/projects/${slug}`;
+    return pathname === base || pathname.startsWith(`${base}/`);
+  };
 
   return (
-    <aside className="flex h-full w-[248px] shrink-0 flex-col overflow-visible border-r border-border bg-background">
+    <aside
+      className="relative flex h-full shrink-0 flex-col overflow-visible border-r border-border bg-background"
+      style={{ width: sidebarWidth }}
+    >
       <div className="shrink-0 border-b border-border pt-3">
         <Link
           href="/"
@@ -443,100 +755,100 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-3 py-3">
-        <p className="mb-1.5 shrink-0 px-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-soft">
-          Main
-        </p>
-
-        <div className="flex shrink-0 flex-col gap-0.5">
-          <NavItem
-            href="/"
-            label="Dashboard"
-            icon={LayoutDashboard}
-            active={isActive("/")}
-          />
-
-          <ExpandableSection
-            label="Projects"
-            icon={FolderKanban}
-            href="/projects"
-            active={projectActive}
-            open={projectsOpen}
-            onToggle={toggleProjects}
-            list={showcaseProjects.map((p) => (
-              <NestedLink
-                key={`${p.slug}-${p.name}`}
-                href={`/projects/${p.slug}`}
-                label={p.name}
-                active={pathname.includes(p.slug)}
-              />
-            ))}
-            footer={
-              <>
-                <NestedLink href="/projects" label="View all projects" />
-                <Link
-                  href="/projects/new"
-                  className="flex items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 text-[13px] font-medium text-ink hover:bg-surface-hover"
-                >
-                  <Plus className="size-3.5" strokeWidth={2.25} />
-                  New Project
-                </Link>
-              </>
-            }
-          />
-
-          <ExpandableSection
-            label="Clients"
-            icon={Users}
-            href="/clients"
-            active={clientActive}
-            open={clientsOpen}
-            onToggle={toggleClients}
-            list={(navClients.length > 0
-              ? navClients
-              : [
-                  { id: "c1", name: "Acme Studio" },
-                  { id: "c1", name: "Sarah Johnson" },
-                  { id: "c2", name: "John Smith" },
-                ]
-            ).map((c) => (
-              <NestedLink
-                key={`${c.id}-${c.name}`}
-                href={`/clients/${c.id}`}
-                label={c.name}
-                active={pathname === `/clients/${c.id}`}
-              />
-            ))}
-            footer={
-              <>
-                <NestedLink href="/clients" label="View all clients" />
-                <Link
-                  href="/clients/new"
-                  className="flex items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 text-[13px] font-medium text-ink hover:bg-surface-hover"
-                >
-                  <Plus className="size-3.5" strokeWidth={2.25} />
-                  Add Client
-                </Link>
-              </>
-            }
-          />
-        </div>
-
-        <div className="mt-5 shrink-0">
-          <p className="mb-1.5 px-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-soft">
-            Workspace
-          </p>
-          <div className="flex flex-col gap-0.5">
-            {WORKSPACE_NAV.map((item) => (
+        <div className="shrink-0">
+          <CategoryHeader label="Main" open={mainOpen} onToggle={toggleMain} />
+          <Collapsible open={mainOpen}>
+            <div className="flex flex-col gap-0.5">
               <NavItem
-                key={item.href}
-                {...item}
-                active={isActive(item.href)}
-                badge={
-                  item.href === "/notifications" ? unreadCount : undefined
+                href="/"
+                label="Dashboard"
+                icon={LayoutDashboard}
+                active={isActive("/")}
+              />
+
+              <ExpandableSection
+                label="Projects"
+                icon={FolderKanban}
+                href="/projects"
+                active={projectActive}
+                open={projectsOpen}
+                onToggle={toggleProjects}
+                list={navProjects.map((p) => (
+                  <NestedLink
+                    key={p.slug}
+                    href={`/projects/${p.slug}`}
+                    label={p.name}
+                    active={projectPathMatch(p.slug)}
+                  />
+                ))}
+                footer={
+                  <>
+                    <NestedLink href="/projects" label="View all projects" />
+                    <button
+                      type="button"
+                      onClick={() => projectModal?.openCreate()}
+                      className="flex w-full cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 text-left text-[13px] font-medium text-ink hover:bg-surface-hover"
+                    >
+                      <Plus className="size-3.5" strokeWidth={2.25} />
+                      New Project
+                    </button>
+                  </>
                 }
               />
-            ))}
-          </div>
+
+              <ExpandableSection
+                label="Clients"
+                icon={Users}
+                href="/clients"
+                active={clientActive}
+                open={clientsOpen}
+                onToggle={toggleClients}
+                list={navClients.map((c) => (
+                  <NestedLink
+                    key={`${c.id}-${c.name}`}
+                    href={`/clients/${c.id}`}
+                    label={c.name}
+                    active={pathname === `/clients/${c.id}`}
+                  />
+                ))}
+                footer={
+                  <>
+                    <NestedLink href="/clients" label="View all clients" />
+                    <button
+                      type="button"
+                      onClick={() => clientModal?.openAdd()}
+                      className="flex w-full cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 text-left text-[13px] font-medium text-ink hover:bg-surface-hover"
+                    >
+                      <Plus className="size-3.5" strokeWidth={2.25} />
+                      Add Client
+                    </button>
+                  </>
+                }
+              />
+            </div>
+          </Collapsible>
+        </div>
+
+        <div className="mt-1.5 shrink-0">
+          <CategoryHeader
+            label="Workspace"
+            open={workspaceOpen}
+            onToggle={toggleWorkspace}
+          />
+          <Collapsible open={workspaceOpen}>
+            <div className="flex flex-col gap-0.5">
+              {WORKSPACE_NAV.map((item) => (
+                <NavItem
+                  key={item.href}
+                  {...item}
+                  active={isActive(item.href)}
+                  badge={
+                    item.href === "/notifications" ? unreadCount : undefined
+                  }
+                />
+              ))}
+            </div>
+          </Collapsible>
         </div>
       </nav>
 
@@ -555,7 +867,7 @@ export default function Sidebar() {
             open={accountOpen}
             onClose={() => setAccountOpen(false)}
             displayName={displayName}
-            workspaceName="Alex Studio"
+            workspaceName={wsName}
           />
           <div
             className={`group flex w-full items-center gap-1 rounded-[8px] px-1.5 py-1.5 transition-colors ${
@@ -597,6 +909,35 @@ export default function Sidebar() {
           </div>
         </div>
       </div>
+
+      <button
+        type="button"
+        aria-label="Resize sidebar"
+        title="Drag to resize · double-click to reset"
+        onPointerDown={onResizePointerDown}
+        onPointerMove={onResizePointerMove}
+        onPointerUp={onResizePointerUp}
+        onPointerCancel={onResizePointerUp}
+        onDoubleClick={() => {
+          setSidebarWidth(SIDEBAR_DEFAULT_WIDTH);
+          writeSidebarWidth(SIDEBAR_DEFAULT_WIDTH);
+        }}
+        className="group/resize absolute inset-y-0 -right-2 z-50 flex w-4 cursor-col-resize items-center justify-center outline-none"
+      >
+        <span
+          className={`flex h-8 w-3.5 items-center justify-center rounded-[6px] border border-border bg-card shadow-sm transition-colors ${
+            resizing
+              ? "border-accent bg-accent-soft"
+              : "opacity-70 group-hover/resize:opacity-100 group-focus-visible/resize:opacity-100"
+          }`}
+        >
+          <GripVertical
+            className={`size-3.5 ${resizing ? "text-ink" : "text-muted"}`}
+            strokeWidth={2}
+            aria-hidden
+          />
+        </span>
+      </button>
     </aside>
   );
 }

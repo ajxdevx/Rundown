@@ -1,10 +1,4 @@
-import {
-  projectDetail,
-  projectFiles,
-  projectInvoices,
-  projectMessages,
-  projectTasks,
-} from "./projectDetailMock";
+import type { ProjectDetail } from "./projectDetailMock";
 
 export type PortalTaskStatus = "completed" | "in-progress" | "upcoming";
 
@@ -33,69 +27,55 @@ export const portalBusiness = {
 export const portalAccessOverride: PortalAccess | null = null;
 
 export const portalClient = {
-  firstName: "Sarah",
-  fullName: "Sarah Johnson",
+  firstName: "there",
+  fullName: "",
 };
 
-export const portalProject = {
-  ...projectDetail,
-  slug: "acme-website",
-  portalUrl: "/p/acme-website",
-  greeting: `Hi ${portalClient.firstName}, here's the latest progress on your project.`,
-  statusMessage: "We're currently building the approved homepage and preparing the next project update.",
+/** Blank portal shell — real portals load from created projects only. */
+export const portalProject: ProjectDetail & {
+  greeting: string;
+  statusMessage: string;
   nextUp: {
-    title: "Development",
-    description:
-      "We're currently building the approved homepage and preparing the next project update.",
-    expectedUpdate: "Friday",
+    title: string;
+    description: string;
+    expectedUpdate: string;
+  };
+} = {
+  id: "",
+  slug: "",
+  name: "",
+  client: "",
+  clientId: "",
+  clientEmail: "",
+  status: "draft",
+  description: "",
+  deadline: "",
+  deadlineLabel: "",
+  deadlineRelative: "",
+  daysRemaining: 0,
+  overdue: false,
+  value: 0,
+  currency: "USD",
+  paid: 0,
+  remaining: 0,
+  paymentState: "paid",
+  progress: 0,
+  tasksCompleted: 0,
+  tasksTotal: 0,
+  portalUrl: "",
+  lastPortalView: "Never",
+  createdAt: "",
+  updatedAt: "",
+  greeting: "Here's the latest progress on your project.",
+  statusMessage: "We'll share updates here as work progresses.",
+  nextUp: {
+    title: "No next step yet",
+    description: "We'll update this project when the next stage begins.",
+    expectedUpdate: "",
   },
 };
 
-const completedDates: Record<string, string> = {
-  t1: "Sep 2",
-  t2: "Sep 8",
-  t3: "Sep 14",
-  t4: "Sep 18",
-  t8: "Sep 12",
-  t9: "Sep 13",
-  t10: "Sep 15",
-  t11: "Sep 16",
-};
-
-const clientDescriptions: Record<string, string> = {
-  t1: "Kickoff and requirements gathering.",
-  t2: "Structure and layout exploration.",
-  t3: "Visual design for the homepage.",
-  t4: "Your feedback and sign-off.",
-  t5: "Building the approved designs.",
-  t6: "Responsive implementation for mobile.",
-};
-
-function displayTaskName(name: string) {
-  return name
-    .replace(" Call", "")
-    .replace("Homepage design", "Homepage Design")
-    .replace("Client approval", "Client Approval")
-    .replace("Homepage Development", "Development");
-}
-
-/** Client-visible tasks only — private tasks never included. */
-export const portalTasks: PortalTask[] = (() => {
-  const visible = projectTasks.filter((t) => t.visibleToClient);
-  const firstIncomplete = visible.findIndex((t) => !t.done);
-  return visible.map((t, index) => {
-    let status: PortalTaskStatus = "upcoming";
-    if (t.done) status = "completed";
-    else if (index === firstIncomplete) status = "in-progress";
-    return {
-      id: t.id,
-      name: displayTaskName(t.name),
-      status,
-      description: clientDescriptions[t.id] ?? t.description,
-      completedAt: t.done ? completedDates[t.id] : undefined,
-    };
-  });
-})();
+export const portalTasks: PortalTask[] = [];
 
 export function portalProgressFromTasks(tasks: PortalTask[]) {
   const total = tasks.length;
@@ -104,13 +84,29 @@ export function portalProgressFromTasks(tasks: PortalTask[]) {
   return { progress, completed, total };
 }
 
-export const portalFiles = projectFiles.filter((f) => f.visibleToClient);
+export const portalFiles: {
+  id: string;
+  name: string;
+  type: "PDF" | "ZIP" | "IMG";
+  size: string;
+  uploaded: string;
+  visibleToClient: boolean;
+}[] = [];
+
+export type PortalInvoice = {
+  id: string;
+  number: string;
+  title: string;
+  amount: number;
+  due: string;
+  paid: number;
+  remaining: number;
+  status: "paid" | "due" | "overdue" | "processing" | "failed" | "partial";
+  hasPaymentLink: boolean;
+} | null;
 
 /** Outstanding invoice for pay CTA — never expose paid-as-unpaid. */
-export const portalInvoice =
-  projectInvoices.find((i) => i.status === "due" || i.status === "overdue") ??
-  projectInvoices.find((i) => i.remaining > 0) ??
-  null;
+export const portalInvoice: PortalInvoice = null;
 
 export type PortalMessage = {
   id: string;
@@ -121,19 +117,9 @@ export type PortalMessage = {
   failed?: boolean;
 };
 
-export const portalMessages: PortalMessage[] = projectMessages.map((m) => ({
-  ...m,
-  name:
-    m.author === "freelancer"
-      ? portalBusiness.ownerFirstName
-      : m.name === "Sarah Johnson"
-        ? portalClient.firstName
-        : m.name,
-}));
+export const portalMessages: PortalMessage[] = [];
 
-export function paymentStatusLabel(
-  status: string,
-): string {
+export function paymentStatusLabel(status: string): string {
   switch (status) {
     case "paid":
       return "Paid";

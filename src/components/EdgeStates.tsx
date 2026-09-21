@@ -45,11 +45,11 @@ export function ProjectNotFound() {
     <Shell
       icon={FolderX}
       title="Project not found"
-      description="This project may have been deleted or you may no longer have access to it."
+      description="This project may have been deleted or you may not have access to it."
     >
       <Link
         href="/projects"
-        className="inline-flex h-11 cursor-pointer items-center rounded-2xl btn-accent px-5 text-sm font-semibold"
+        className="inline-flex h-11 cursor-pointer items-center rounded-[8px] btn-accent px-5 text-sm font-semibold"
       >
         Back to Projects
       </Link>

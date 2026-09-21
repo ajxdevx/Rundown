@@ -30,10 +30,13 @@ import {
   UpgradeCheckout,
 } from "@/components/billing/BillingModals";
 import ConfirmDeleteModal from "@/components/ConfirmDeleteModal";
+import ContextMenu from "@/components/ContextMenu";
 import DashboardTopBar from "@/components/DashboardTopBar";
 import EmptyState from "@/components/EmptyState";
+import MenuDropdown from "@/components/MenuDropdown";
 import { ProjectsPageSkeleton } from "@/components/skeletons";
 import { useToastOptional } from "@/components/ToastProvider";
+import { useProjectModal } from "@/components/ProjectModalProvider";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import {
   paymentStatusIcon,
@@ -43,7 +46,6 @@ import {
   StatusBadge,
 } from "@/components/ui/StatusBadge";
 import {
-  activeProjects as seedProjects,
   type ActiveProject,
   type PaymentStatus,
   type ProjectStatus,
@@ -52,9 +54,12 @@ import { useInitialLoading } from "@/hooks/useInitialLoading";
 import { useBilling } from "@/lib/billingStore";
 import {
   getCreatedProjects,
+  getCreatedProjectById,
+  getCreatedProjectBySlug,
   commitCreatedProject,
   type CreatedProject,
 } from "@/lib/createProject";
+import { getActiveWorkspaceId } from "@/lib/workspaceStore";
 import { backgroundSync } from "@/lib/optimistic";
 import { markSlugTaken, uniqueProjectSlug } from "@/lib/projectSlug";
 
@@ -242,10 +247,6 @@ function deadlineLabelFromIso(iso: string): string {
   });
 }
 
-function seedToList(p: ActiveProject): ListProject {
-  return { ...p, source: "seed" };
-}
-
 function createdToList(p: CreatedProject): ListProject {
   const done = p.tasks.filter((t) => t.done).length;
   const total = p.tasks.length;
@@ -276,88 +277,49 @@ function createdToList(p: CreatedProject): ListProject {
 
 function buildInitialProjects(): ListProject[] {
   const created = typeof window !== "undefined" ? getCreatedProjects() : [];
-  return [...created.map(createdToList), ...seedProjects.map(seedToList)];
+  return created.map(createdToList);
 }
 
-function SortDropdown({
-  value,
-  onChange,
+function ProjectRowMenu({
+  open,
+  onClose,
+  onAction,
+  position,
+  showComplete,
 }: {
-  value: SortKey;
-  onChange: (v: SortKey) => void;
+  open: boolean;
+  onClose: () => void;
+  onAction: (action: string) => void;
+  position?: { x: number; y: number } | null;
+  showComplete: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const label = SORT_OPTIONS.find((o) => o.id === value)?.label ?? "Sort";
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("mousedown", onPointer);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("mousedown", onPointer);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   return (
-    <div className="relative shrink-0" ref={ref}>
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-[8px] border border-border bg-card px-3 text-sm font-medium text-muted hover:text-ink"
-      >
-        <span className="inline-grid text-left">
-          <span
-            className="invisible col-start-1 row-start-1 whitespace-nowrap"
-            aria-hidden
-          >
-            Sort: Deadline soonest
-          </span>
-          <span className="col-start-1 row-start-1 whitespace-nowrap">
-            Sort: {label}
-          </span>
-        </span>
-        <ChevronDown
-          className="size-3.5 shrink-0 opacity-70"
-          strokeWidth={1.75}
-        />
-      </button>
-      {open ? (
-        <ul
-          role="listbox"
-          className="absolute right-0 z-50 mt-1.5 w-52 overflow-hidden rounded-[12px] border border-border bg-card p-1.5 shadow-[var(--shadow-popover)]"
-        >
-          {SORT_OPTIONS.map((opt) => (
-            <li key={opt.id}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={value === opt.id}
-                onClick={() => {
-                  onChange(opt.id);
-                  setOpen(false);
-                }}
-                className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-[8px] px-3 py-2 text-left text-sm text-ink hover-soft"
-              >
-                {opt.label}
-                {value === opt.id ? (
-                  <Check className="size-3.5 text-ink" strokeWidth={2.25} />
-                ) : null}
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
+    <ContextMenu
+      open={open}
+      onClose={onClose}
+      onAction={onAction}
+      position={position}
+      clampHeight={320}
+      items={[
+        { id: "open", label: "Open Project", icon: FolderKanban },
+        { id: "edit", label: "Edit Project", icon: Pencil },
+        { id: "duplicate", label: "Duplicate Project", icon: CopyPlus },
+        { id: "copy", label: "Copy Portal Link", icon: Copy },
+        {
+          id: "complete",
+          label: "Mark as Completed",
+          icon: CheckCircle2,
+          hidden: !showComplete,
+        },
+        {
+          id: "archive",
+          label: "Archive Project",
+          icon: Archive,
+          dividerBefore: true,
+        },
+        { id: "delete", label: "Delete Project", icon: Trash2, danger: true },
+      ]}
+    />
   );
 }
 
@@ -490,110 +452,9 @@ function MultiSelectDropdown({
   );
 }
 
-function ProjectRowMenu({
-  open,
-  onClose,
-  onAction,
-  position,
-  showComplete,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onAction: (action: string) => void;
-  position?: { x: number; y: number } | null;
-  showComplete: boolean;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) onClose();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("mousedown", onPointer);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("mousedown", onPointer);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open, onClose]);
-
-  if (!open) return null;
-
-  const items: {
-    id: string;
-    label: string;
-    icon: typeof FolderKanban;
-    danger?: boolean;
-    dividerBefore?: boolean;
-  }[] = [
-    { id: "open", label: "Open Project", icon: FolderKanban },
-    { id: "edit", label: "Edit Project", icon: Pencil },
-    { id: "duplicate", label: "Duplicate Project", icon: CopyPlus },
-    { id: "copy", label: "Copy Portal Link", icon: Copy },
-    ...(showComplete
-      ? [{ id: "complete", label: "Mark as Completed", icon: CheckCircle2 }]
-      : []),
-    {
-      id: "archive",
-      label: "Archive Project",
-      icon: Archive,
-      dividerBefore: true,
-    },
-    { id: "delete", label: "Delete Project", icon: Trash2, danger: true },
-  ];
-
-  const fixed = Boolean(position);
-  const clamped = position
-    ? {
-        top: Math.min(position.y, window.innerHeight - 320),
-        left: Math.min(position.x, window.innerWidth - 220),
-      }
-    : null;
-
-  return (
-    <div
-      ref={ref}
-      role="menu"
-      style={clamped ?? undefined}
-      className={
-        fixed
-          ? "fixed z-[80] w-52 overflow-hidden rounded-[12px] border border-border bg-card p-1.5 shadow-[var(--shadow-popover)]"
-          : "absolute right-0 top-full z-40 mt-1.5 w-52 overflow-hidden rounded-[12px] border border-border bg-card p-1.5 shadow-[var(--shadow-popover)]"
-      }
-    >
-      {items.map((item) => (
-        <div key={item.id}>
-          {item.dividerBefore || item.danger ? (
-            <div className="my-1 border-t border-border" />
-          ) : null}
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              onAction(item.id);
-              onClose();
-            }}
-            className={`flex w-full cursor-pointer items-center gap-2.5 rounded-[8px] px-3 py-2 text-left text-sm font-medium ${
-              item.danger
-                ? "text-danger hover:bg-danger-soft"
-                : "text-ink hover-soft"
-            }`}
-          >
-            <item.icon className="size-4 opacity-70" strokeWidth={1.75} />
-            {item.label}
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default function ProjectsPage() {
   const router = useRouter();
+  const { openCreate, openEdit } = useProjectModal();
   const toast = useToastOptional();
   const loading = useInitialLoading(420);
   const { canCreateProject, upgradeToPro } = useBilling();
@@ -624,12 +485,21 @@ export default function ProjectsPage() {
   };
 
   useEffect(() => {
-    try {
-      setProjects(buildInitialProjects());
-      setLoadError(false);
-    } catch {
-      setLoadError(true);
-    }
+    const load = () => {
+      try {
+        setProjects(buildInitialProjects());
+        setLoadError(false);
+      } catch {
+        setLoadError(true);
+      }
+    };
+    load();
+    window.addEventListener("dueso:projects-changed", load);
+    window.addEventListener("dueso:workspace-changed", load);
+    return () => {
+      window.removeEventListener("dueso:projects-changed", load);
+      window.removeEventListener("dueso:workspace-changed", load);
+    };
   }, []);
 
   const closeMenu = () => {
@@ -710,7 +580,7 @@ export default function ProjectsPage() {
       setLimitOpen(true);
       return;
     }
-    router.push("/projects/new");
+    openCreate();
   };
 
   const copyPortalLink = async (project: ListProject) => {
@@ -801,6 +671,7 @@ export default function ProjectsPage() {
 
     const created: CreatedProject = {
       id: dup.id,
+      workspaceId: getActiveWorkspaceId(),
       slug: dup.slug,
       name: dup.name,
       clientId: null,
@@ -834,8 +705,66 @@ export default function ProjectsPage() {
   };
 
   const onMenuAction = (project: ListProject, action: string) => {
-    if (action === "open" || action === "edit") {
+    if (action === "open") {
       router.push(`/projects/${project.slug}`);
+      return;
+    }
+    if (action === "edit") {
+      const created =
+        project.source === "created"
+          ? getCreatedProjectById(project.id) ||
+            getCreatedProjectBySlug(project.slug)
+          : null;
+      openEdit({
+        initial: {
+          id: project.id,
+          name: project.name,
+          clientId: created?.clientId ?? null,
+          clientName: created?.clientName ?? project.client,
+          clientEmail: created?.clientEmail ?? "",
+          description: created?.description ?? "",
+          value: created?.value ?? project.value,
+          currency: created?.currency ?? "USD",
+          deadline: created?.deadline ?? "",
+          status: (created?.status ?? project.status) as
+            | "active"
+            | "draft"
+            | "on-hold"
+            | "completed"
+            | "archived",
+          tasks: created?.tasks ?? [],
+        },
+        onSuccess: (values) => {
+          setProjects((list) =>
+            list.map((p) =>
+              p.id === project.id
+                ? {
+                    ...p,
+                    name: values.name,
+                    client: values.clientName,
+                    value: values.value ?? 0,
+                    status: values.status,
+                    deadlineAt: values.deadline || p.deadlineAt,
+                    deadlineLabel: values.deadline
+                      ? new Date(values.deadline).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })
+                      : "No deadline",
+                    progress:
+                      values.tasks.length === 0
+                        ? 0
+                        : Math.round(
+                            (values.tasks.filter((t) => t.done).length /
+                              values.tasks.length) *
+                              100,
+                          ),
+                  }
+                : p,
+            ),
+          );
+        },
+      });
       return;
     }
     if (action === "copy") {
@@ -1049,7 +978,13 @@ export default function ProjectsPage() {
                       onChange={setClientFilters}
                     />
                   ) : null}
-                  <SortDropdown value={sort} onChange={setSort} />
+                  <MenuDropdown
+                    value={sort}
+                    onChange={(v) => setSort(v as SortKey)}
+                    options={SORT_OPTIONS}
+                    labelPrefix="Sort: "
+                    widthLabel="Sort: Deadline soonest"
+                  />
                 </div>
               </div>
 

@@ -192,7 +192,7 @@ export default function Dropdown({
                 ? { top: pos.top, left: pos.left, width: pos.width }
                 : { top: 0, left: 0, visibility: "hidden" }
             }
-            className="fixed z-[120] overflow-hidden rounded-xl border border-border bg-card shadow-[0_16px_40px_rgba(0,0,0,0.55)]"
+            className="fixed z-[120] overflow-hidden rounded-[12px] border border-border bg-card shadow-[var(--shadow-popover)]"
           >
             <div className="relative">
               <ul
@@ -215,7 +215,7 @@ export default function Dropdown({
                           onChange(item.value);
                           setOpen(false);
                         }}
-                        className={`flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm hover-soft ${
+                        className={`flex w-full cursor-pointer items-center justify-between gap-3 rounded-[8px] px-3 py-2 text-left text-sm hover-soft ${
                           isSelected
                             ? "bg-surface text-ink"
                             : "text-muted"
@@ -269,7 +269,7 @@ export default function Dropdown({
         onClick={() => {
           if (!disabled) setOpen((v) => !v);
         }}
-        className={`flex h-12 w-full cursor-pointer items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 text-left text-sm outline-none transition-colors duration-200 focus:border-ink disabled:cursor-not-allowed disabled:opacity-60 ${
+        className={`flex h-12 w-full cursor-pointer items-center justify-between gap-3 rounded-[8px] border border-border bg-card px-4 text-left text-sm outline-none transition-colors duration-200 focus:border-ink disabled:cursor-not-allowed disabled:opacity-60 ${
           open ? "border-ink" : ""
         } ${selected ? "text-ink" : "text-muted"}`}
       >

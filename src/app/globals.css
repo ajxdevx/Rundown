@@ -87,10 +87,16 @@ html {
   --font-brand: var(--font-manrope);
 }
 
-/* Focus — visible, not glowing */
-:focus-visible {
+/* Focus — visible on controls, not on text fields */
+:focus-visible:not(input):not(textarea):not(select) {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
 }
 
 .scrollbar-hide {
@@ -357,6 +363,10 @@ html {
     border-color: var(--ink);
   }
 
+  .input-field:focus-visible {
+    outline: none;
+  }
+
   .input-field[aria-invalid="true"] {
     border-color: var(--danger);
   }
@@ -439,3 +449,4 @@ html {
     background-color: var(--hover-row-rest);
   }
 }
+

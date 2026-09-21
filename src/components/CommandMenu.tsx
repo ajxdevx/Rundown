@@ -22,10 +22,10 @@ import {
   Users,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { activeProjects } from "@/data/dashboardMock";
-import { projectDetail } from "@/data/projectDetailMock";
 import { getAllClients } from "@/lib/clientsStore";
 import { getCreatedProjects } from "@/lib/createProject";
+import { useClientModalOptional } from "./ClientModalProvider";
+import { useProjectModalOptional } from "./ProjectModalProvider";
 
 type CommandMenuContextValue = {
   open: boolean;
@@ -52,6 +52,7 @@ type Item = {
   label: string;
   group: string;
   href?: string;
+  onSelect?: () => void;
   icon: typeof Search;
   keywords?: string;
 };
@@ -92,6 +93,8 @@ function CommandMenuPanel({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const projectModal = useProjectModalOptional();
+  const clientModal = useClientModalOptional();
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
 
@@ -111,27 +114,33 @@ function CommandMenuPanel({
   const items = useMemo(() => {
     const created = typeof window !== "undefined" ? getCreatedProjects() : [];
     const clients = typeof window !== "undefined" ? getAllClients() : [];
+    const firstProject = created[0];
+    const projectHref = firstProject
+      ? `/projects/${firstProject.slug}`
+      : "/projects";
 
     const actions: Item[] = [
       {
         id: "a-new-project",
         label: "Create project",
         group: "Actions",
-        href: "/projects/new",
+        onSelect: () => projectModal?.openCreate(),
         icon: Plus,
       },
       {
         id: "a-add-client",
         label: "Add client",
         group: "Actions",
-        href: "/clients/new",
+        onSelect: () => clientModal?.openAdd(),
         icon: UserPlus,
       },
       {
         id: "a-create-invoice",
         label: "Create invoice",
         group: "Actions",
-        href: `/projects/${projectDetail.slug}?tab=invoices`,
+        href: firstProject
+          ? `${projectHref}?tab=invoices`
+          : "/projects",
         icon: FileText,
       },
       {
@@ -163,6 +172,34 @@ function CommandMenuPanel({
         icon: Settings,
       },
       {
+        id: "g-settings-profile",
+        label: "Go to Profile Settings",
+        group: "Navigate",
+        href: "/settings/profile",
+        icon: Settings,
+      },
+      {
+        id: "g-settings-workspace",
+        label: "Go to Workspace Settings",
+        group: "Navigate",
+        href: "/settings/workspace",
+        icon: Settings,
+      },
+      {
+        id: "g-settings-portal",
+        label: "Go to Client Portal Settings",
+        group: "Navigate",
+        href: "/settings/client-portal",
+        icon: Settings,
+      },
+      {
+        id: "g-settings-preferences",
+        label: "Go to Preferences",
+        group: "Navigate",
+        href: "/settings/preferences",
+        icon: Settings,
+      },
+      {
         id: "g-billing",
         label: "Go to Billing",
         group: "Navigate",
@@ -171,32 +208,14 @@ function CommandMenuPanel({
       },
     ];
 
-    const projects: Item[] = [
-      {
-        id: `p-${projectDetail.id}`,
-        label: projectDetail.name,
-        group: "Projects",
-        href: `/projects/${projectDetail.slug}`,
-        icon: FolderKanban,
-        keywords: projectDetail.client,
-      },
-      ...created.map((p) => ({
-        id: `p-${p.id}`,
-        label: p.name,
-        group: "Projects",
-        href: `/projects/${p.slug}`,
-        icon: FolderKanban,
-        keywords: p.clientName,
-      })),
-      ...activeProjects.map((p) => ({
-        id: `ap-${p.id}`,
-        label: p.name,
-        group: "Projects",
-        href: `/projects/${projectDetail.slug}`,
-        icon: FolderKanban,
-        keywords: p.client,
-      })),
-    ];
+    const projects: Item[] = created.map((p) => ({
+      id: `p-${p.id}`,
+      label: p.name,
+      group: "Projects",
+      href: `/projects/${p.slug}`,
+      icon: FolderKanban,
+      keywords: p.clientName,
+    }));
 
     const clientItems: Item[] = clients.map((c) => ({
       id: `c-${c.id}`,
@@ -207,38 +226,44 @@ function CommandMenuPanel({
       keywords: `${c.email} ${c.company ?? ""}`,
     }));
 
-    const files: Item[] = [
-      {
-        id: "f-files",
-        label: "Project files",
-        group: "Files",
-        href: `/projects/${projectDetail.slug}?tab=files`,
-        icon: FileText,
-        keywords: "documents uploads",
-      },
-    ];
+    const files: Item[] = firstProject
+      ? [
+          {
+            id: "f-files",
+            label: "Project files",
+            group: "Files",
+            href: `${projectHref}?tab=files`,
+            icon: FileText,
+            keywords: "documents uploads",
+          },
+        ]
+      : [];
 
-    const invoices: Item[] = [
-      {
-        id: "i-invoices",
-        label: "Invoices",
-        group: "Invoices",
-        href: `/projects/${projectDetail.slug}?tab=invoices`,
-        icon: CreditCard,
-        keywords: "billing payment",
-      },
-    ];
+    const invoices: Item[] = firstProject
+      ? [
+          {
+            id: "i-invoices",
+            label: "Invoices",
+            group: "Invoices",
+            href: `${projectHref}?tab=invoices`,
+            icon: CreditCard,
+            keywords: "billing payment",
+          },
+        ]
+      : [];
 
-    const messages: Item[] = [
-      {
-        id: "m-messages",
-        label: "Messages",
-        group: "Messages",
-        href: `/projects/${projectDetail.slug}?tab=messages`,
-        icon: MessageSquare,
-        keywords: "chat client",
-      },
-    ];
+    const messages: Item[] = firstProject
+      ? [
+          {
+            id: "m-messages",
+            label: "Messages",
+            group: "Messages",
+            href: `${projectHref}?tab=messages`,
+            icon: MessageSquare,
+            keywords: "chat client",
+          },
+        ]
+      : [];
 
     return [
       ...actions,
@@ -248,7 +273,7 @@ function CommandMenuPanel({
       ...invoices,
       ...messages,
     ];
-  }, [open]);
+  }, [open, projectModal, clientModal]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -266,8 +291,12 @@ function CommandMenuPanel({
   }, [query]);
 
   const go = (item: Item) => {
-    if (!item.href) return;
     onClose();
+    if (item.onSelect) {
+      item.onSelect();
+      return;
+    }
+    if (!item.href) return;
     router.push(item.href);
   };
 

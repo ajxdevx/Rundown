@@ -28,7 +28,6 @@ import {
 } from "@/data/portalMock";
 import {
   getCreatedProjectBySlug,
-  SEED_PORTAL_SLUG,
 } from "@/lib/createProject";
 import { backgroundSync } from "@/lib/optimistic";
 import { useInitialLoading } from "@/hooks/useInitialLoading";
@@ -240,12 +239,6 @@ function PortalContent({ slug }: ClientPortalPageProps) {
       setFiles([]);
       setInvoice(null);
       setMessages([]);
-      setAccess("ok");
-    } else if (
-      slug.toLowerCase() === SEED_PORTAL_SLUG ||
-      slug.toLowerCase() === portalProject.slug ||
-      slug.toLowerCase() === "acme-website-redesign"
-    ) {
       setAccess("ok");
     } else {
       setAccess("not-found");
@@ -836,7 +829,7 @@ function PortalContent({ slug }: ClientPortalPageProps) {
                         }
                       }}
                       placeholder="Write a message..."
-                      className="max-h-32 min-h-10 min-w-0 flex-1 resize-none rounded-[8px] border border-border bg-background px-3 py-2.5 text-sm text-ink outline-none placeholder:text-muted-soft focus:border-ink focus-visible:ring-2 focus-visible:ring-ink/15"
+                      className="max-h-32 min-h-10 min-w-0 flex-1 resize-none rounded-[8px] border border-border bg-background px-3 py-2.5 text-sm text-ink outline-none placeholder:text-muted-soft focus:border-ink"
                     />
                     <Button
                       variant="accent"

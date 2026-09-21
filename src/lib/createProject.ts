@@ -1,4 +1,16 @@
+import { appendActivity } from "./activityStore";
 import { markSlugTaken, uniqueProjectSlug } from "./projectSlug";
+import { getActiveWorkspaceId } from "./workspaceStore";
+
+export type ProjectLifecycleStatus =
+  | "active"
+  | "draft"
+  | "on-hold"
+  | "completed"
+  | "archived";
+
+/** Statuses available when creating a project. */
+export type ProjectCreateStatus = "active" | "draft";
 
 export type CreatedProjectTask = {
   id: string;
@@ -10,6 +22,7 @@ export type CreatedProjectTask = {
 
 export type CreatedProject = {
   id: string;
+  workspaceId: string;
   slug: string;
   name: string;
   clientId: string | null;
@@ -19,9 +32,10 @@ export type CreatedProject = {
   value: number | null;
   currency: string;
   deadline: string;
-  status: "active" | "draft";
+  status: ProjectLifecycleStatus;
   tasks: CreatedProjectTask[];
   createdAt: string;
+  updatedAt?: string;
   portalPath: string;
 };
 
@@ -41,7 +55,7 @@ export type CreateProjectInput = {
   value: string;
   currency: string;
   deadline: string;
-  status: "active" | "draft";
+  status: ProjectLifecycleStatus;
   tasks: CreateProjectTaskInput[];
 };
 
@@ -144,7 +158,10 @@ function writeStore(projects: CreatedProject[]) {
 }
 
 export function getCreatedProjects(): CreatedProject[] {
-  return readStore();
+  const ws = getActiveWorkspaceId();
+  return readStore().filter(
+    (p) => !p.workspaceId || p.workspaceId === ws,
+  );
 }
 
 export function getCreatedProjectBySlug(slug: string): CreatedProject | null {
@@ -167,11 +184,7 @@ export function buildCreatedProject(
   }
 
   const existing = readStore();
-  const taken = [
-    ...existing.map((p) => p.slug),
-    "acme-website",
-    "acme-website-redesign",
-  ];
+  const taken = existing.map((p) => p.slug);
 
   const slug = uniqueProjectSlug(input.name, taken);
   if (!slug) {
@@ -187,6 +200,7 @@ export function buildCreatedProject(
 
   const project: CreatedProject = {
     id: `proj_${Date.now()}`,
+    workspaceId: getActiveWorkspaceId(),
     slug,
     name: input.name.trim(),
     clientId: input.clientId,
@@ -217,6 +231,47 @@ export function commitCreatedProject(project: CreatedProject) {
   const existing = readStore().filter((p) => p.id !== project.id);
   writeStore([project, ...existing]);
   markSlugTaken(project.slug);
+  notifyProjectsChanged();
+
+  try {
+    appendActivity({
+      id: `act_create_${project.id}`,
+      description: `You created ${project.name}`,
+      context: project.clientName || "Project",
+      category: "projects",
+      href: `/projects/${project.slug}`,
+      actorKind: "you",
+      projectId: project.id,
+      projectSlug: project.slug,
+      projectName: project.name,
+      clientName: project.clientName || undefined,
+      workspaceId: project.workspaceId,
+      createdAt: project.createdAt,
+    });
+  } catch {
+    /* activity is secondary */
+  }
+}
+
+export function updateCreatedProject(
+  id: string,
+  patch: Partial<
+    Omit<CreatedProject, "id" | "slug" | "createdAt" | "portalPath">
+  > & { tasks?: CreatedProjectTask[] },
+): CreatedProject | null {
+  const existing = readStore();
+  const index = existing.findIndex((p) => p.id === id);
+  if (index < 0) return null;
+  const updated: CreatedProject = {
+    ...existing[index],
+    ...patch,
+    updatedAt: new Date().toISOString(),
+  };
+  const next = [...existing];
+  next[index] = updated;
+  writeStore(next);
+  notifyProjectsChanged();
+  return updated;
 }
 
 export function removeCreatedProject(id: string): CreatedProject | null {
@@ -224,6 +279,7 @@ export function removeCreatedProject(id: string): CreatedProject | null {
   const removed = existing.find((p) => p.id === id) ?? null;
   if (!removed) return null;
   writeStore(existing.filter((p) => p.id !== id));
+  notifyProjectsChanged();
   return removed;
 }
 
@@ -231,11 +287,13 @@ export function restoreCreatedProject(project: CreatedProject) {
   commitCreatedProject(project);
 }
 
-export const SEED_PROJECT_SLUG = "acme-website-redesign";
-export const SEED_PORTAL_SLUG = "acme-website";
+export const PROJECTS_CHANGED = "dueso:projects-changed";
+
+function notifyProjectsChanged() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(PROJECTS_CHANGED));
+}
 
 export function isKnownProjectSlug(slug: string): boolean {
-  const s = slug.toLowerCase();
-  if (s === SEED_PROJECT_SLUG || s === SEED_PORTAL_SLUG) return true;
   return Boolean(getCreatedProjectBySlug(slug));
 }

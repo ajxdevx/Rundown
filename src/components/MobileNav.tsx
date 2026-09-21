@@ -102,7 +102,7 @@ export default function MobileNav() {
                   { href: "/activity", label: "Activity", icon: Activity },
                   { href: "/billing", label: "Billing", icon: CreditCard },
                   { href: "/settings", label: "Settings", icon: Settings },
-                  { href: "/settings", label: "Account", icon: User },
+                  { href: "/settings/profile", label: "Account", icon: User },
                 ] as const
               ).map((item) => (
                 <Link

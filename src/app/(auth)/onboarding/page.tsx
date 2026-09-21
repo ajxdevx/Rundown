@@ -11,6 +11,7 @@ import {
   OnboardingProgress,
   authInputClass,
 } from "@/components/auth/AuthUI";
+import Dropdown from "@/components/Dropdown";
 import {
   completeOnboarding,
   getSession,
@@ -288,18 +289,13 @@ export default function OnboardingPage() {
 
             <div className="mt-8 space-y-5">
               <AuthField id="currency" label="Currency">
-                <select
+                <Dropdown
                   id="currency"
+                  aria-label="Currency"
                   value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className={authInputClass}
-                >
-                  {CURRENCIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setCurrency}
+                  options={CURRENCIES}
+                />
               </AuthField>
 
               <div>

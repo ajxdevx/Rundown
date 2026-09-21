@@ -1,7 +1,7 @@
 "use client";
 
-import AddClientPage from "@/components/AddClientPage";
+import ClientFormPage from "@/components/AddClientPage";
 
 export default function NewClientRoute() {
-  return <AddClientPage />;
+  return <ClientFormPage mode="add" />;
 }

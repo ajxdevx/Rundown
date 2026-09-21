@@ -1,9 +1,11 @@
 "use client";
 
 import { AuthProvider } from "./AuthProvider";
+import { ClientModalProvider } from "./ClientModalProvider";
 import { CommandMenuProvider } from "./CommandMenu";
 import MobileNav from "./MobileNav";
 import OfflineBanner from "./OfflineBanner";
+import { ProjectModalProvider } from "./ProjectModalProvider";
 import Sidebar from "./Sidebar";
 import { ToastProvider } from "./ToastProvider";
 
@@ -29,7 +31,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <AuthProvider>
       <ToastProvider>
         <CommandMenuProvider>
-          <AppShellInner>{children}</AppShellInner>
+          <ClientModalProvider>
+            <ProjectModalProvider>
+              <AppShellInner>{children}</AppShellInner>
+            </ProjectModalProvider>
+          </ClientModalProvider>
         </CommandMenuProvider>
       </ToastProvider>
     </AuthProvider>

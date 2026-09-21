@@ -81,7 +81,7 @@ export function DashboardSkeleton() {
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="page-title">
-            <GhostText>Good evening, Alex 👋</GhostText>
+            <GhostText>Good evening, Alex</GhostText>
           </h2>
           <p className="mt-1.5 text-sm text-muted">
             <GhostText>
@@ -885,48 +885,233 @@ export function ProjectDetailSkeleton() {
 }
 
 export function ClientListSkeleton() {
+  const cols =
+    "lg:grid-cols-[minmax(0,1.5fr)_8.5rem_8rem_7rem_7.5rem_5.5rem_2.5rem]";
+  const rows = [
+    {
+      name: "Sarah Johnson",
+      meta: "Acme Studio · sarah@example.com",
+      active: "2",
+      total: "4",
+      value: "$7,300",
+      activity: "2 days ago",
+      status: "Active",
+    },
+    {
+      name: "Maya Chen",
+      meta: "Lumen Health · maya@lumen.health",
+      active: "1",
+      total: "1",
+      value: "$9,200",
+      activity: "Yesterday",
+      status: "Active",
+    },
+    {
+      name: "John Smith",
+      meta: "john@example.com",
+      active: "1",
+      total: "1",
+      value: "$1,500",
+      activity: "5 days ago",
+      status: "Active",
+    },
+    {
+      name: "Tom Rivera",
+      meta: "Verde Capital · tom@verde.capital",
+      active: "0",
+      total: "1",
+      value: "$2,200",
+      activity: "12 days ago",
+      status: "Inactive",
+    },
+  ] as const;
+
   return (
-    <ul className="overflow-hidden rounded-2xl border border-border bg-card">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <li
-          key={i}
-          className="flex items-center justify-between gap-4 border-b border-border px-5 py-4 last:border-0"
-        >
-          <div className="min-w-0 flex-1">
-            <Bone className="h-4 w-36 rounded-[4px]" />
-            <Bone className="mt-2 h-3 w-48 rounded-[4px]" />
-            <Bone className="mt-2 h-3 w-56 rounded-[4px]" />
-          </div>
-          <Bone className="h-9 w-20 rounded-[8px]" />
-        </li>
-      ))}
-    </ul>
+    <div className="card-surface overflow-hidden">
+      <div
+        className={`hidden items-center border-b border-border bg-surface/50 px-5 py-2.5 text-xs font-medium text-muted lg:grid lg:gap-4 ${cols}`}
+      >
+        {(
+          ["Client", "Active projects", "Total projects", "Total value", "Last activity", "Status"] as const
+        ).map((label) => (
+          <span key={label}>
+            <GhostText>{label}</GhostText>
+          </span>
+        ))}
+        <span className="sr-only">Actions</span>
+      </div>
+      <ul>
+        {rows.map((row) => (
+          <li
+            key={row.name}
+            className={`grid items-center gap-3 border-b border-border px-5 py-4 last:border-0 lg:gap-4 ${cols}`}
+          >
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-ink">
+                <GhostText>{row.name}</GhostText>
+              </p>
+              <p className="mt-0.5 truncate text-xs text-muted">
+                <GhostText>{row.meta}</GhostText>
+              </p>
+            </div>
+            <p className="text-sm text-ink">
+              <GhostText>{row.active}</GhostText>
+            </p>
+            <p className="text-sm text-ink">
+              <GhostText>{row.total}</GhostText>
+            </p>
+            <p className="text-sm font-medium text-ink">
+              <GhostText>{row.value}</GhostText>
+            </p>
+            <p className="truncate text-xs text-muted">
+              <GhostText>{row.activity}</GhostText>
+            </p>
+            <GhostControl
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium"
+              radiusClass="rounded-md"
+            >
+              {row.status}
+            </GhostControl>
+            <Bone className="size-8 justify-self-end rounded-[8px]" />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export function ClientsPageSkeleton() {
+  return (
+    <div className="w-full flex-1 px-4 py-6 sm:px-6 md:px-8 md:py-8">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="page-title">
+            <GhostText>Clients</GhostText>
+          </h2>
+          <p className="mt-1.5 text-sm text-muted">
+            <GhostText>Manage your clients and their projects.</GhostText>
+          </p>
+        </div>
+        <GhostControl className="inline-flex h-11 items-center gap-2 px-4 text-sm font-semibold">
+          Add Client
+        </GhostControl>
+      </div>
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <Bone className="h-10 w-full rounded-[8px] lg:max-w-md" />
+        <div className="flex flex-wrap items-center gap-2">
+          {(["All", "Active", "Inactive"] as const).map((label) => (
+            <GhostControl key={label} className="h-8 px-3 text-xs font-medium">
+              {label}
+            </GhostControl>
+          ))}
+          <GhostControl className="inline-flex h-9 items-center gap-1.5 px-3 text-sm font-medium">
+            Sort: Recently active
+          </GhostControl>
+        </div>
+      </div>
+      <ClientListSkeleton />
+    </div>
   );
 }
 
 export function ClientDetailSkeleton() {
   return (
-    <div className="w-full flex-1 px-6 py-6 sm:px-8">
-      <Bone className="h-4 w-24 rounded-[4px]" />
-      <div className="mt-4 flex items-start justify-between gap-4">
+    <div className="w-full flex-1 px-4 py-6 sm:px-6 md:px-8">
+      <GhostText>Clients</GhostText>
+      <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <Bone className="h-8 w-48 rounded-[4px]" />
-          <Bone className="mt-3 h-4 w-64 rounded-[4px]" />
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="page-title">
+              <GhostText>Sarah Johnson</GhostText>
+            </h1>
+            <GhostControl
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium"
+              radiusClass="rounded-md"
+            >
+              Active
+            </GhostControl>
+          </div>
+          <p className="mt-1.5 text-sm text-muted">
+            <GhostText>Acme Studio</GhostText>
+          </p>
         </div>
-        <Bone className="h-10 w-10 rounded-[8px]" />
+        <div className="flex gap-2">
+          <GhostControl className="inline-flex h-10 items-center gap-2 px-4 text-sm font-medium">
+            Edit Client
+          </GhostControl>
+          <Bone className="size-10 rounded-[8px]" />
+        </div>
       </div>
-      <div className="mt-8 grid gap-4 lg:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="rounded-2xl border border-border bg-card p-5">
-            <Bone className="h-3 w-20 rounded-[4px]" />
-            <Bone className="mt-3 h-6 w-16 rounded-[4px]" />
+      <div className="mt-6 grid grid-cols-2 gap-3 border-b border-border pb-6 sm:grid-cols-4">
+        {(
+          [
+            ["Active Projects", "2"],
+            ["Total Projects", "4"],
+            ["Total Value", "$7,300"],
+            ["Outstanding", "$1,250"],
+          ] as const
+        ).map(([label, value]) => (
+          <div key={label}>
+            <p className="text-xs text-muted">
+              <GhostText>{label}</GhostText>
+            </p>
+            <p className="mt-0.5 text-sm font-medium text-ink">
+              <GhostText>{value}</GhostText>
+            </p>
           </div>
         ))}
       </div>
-      <div className="mt-6 rounded-2xl border border-border bg-card p-5">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Bone key={i} className="mb-3 h-12 w-full rounded-[8px] last:mb-0" />
-        ))}
+      <div className="mt-8 grid gap-6 lg:grid-cols-12">
+        <div className="lg:col-span-4">
+          <h3 className="section-title">
+            <GhostText>Client Information</GhostText>
+          </h3>
+          <div className="card-surface mt-4 space-y-4 p-5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i}>
+                <Bone className="h-3 w-16 rounded-[4px]" />
+                <Bone className="mt-2 h-4 w-40 rounded-[4px]" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-8 lg:col-span-8">
+          <div>
+            <h3 className="section-title">
+              <GhostText>Projects</GhostText>
+            </h3>
+            <div className="card-surface mt-4 space-y-0 overflow-hidden">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between gap-4 border-b border-border px-5 py-4 last:border-0"
+                >
+                  <div className="min-w-0 flex-1">
+                    <Bone className="h-4 w-40 rounded-[4px]" />
+                    <Bone className="mt-2 h-2 w-full max-w-xs rounded-full" />
+                  </div>
+                  <Bone className="h-9 w-16 rounded-[8px]" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h3 className="section-title">
+              <GhostText>Activity</GhostText>
+            </h3>
+            <div className="card-surface mt-4 overflow-hidden">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between gap-4 border-b border-border px-5 py-3.5 last:border-0"
+                >
+                  <Bone className="h-4 w-56 rounded-[4px]" />
+                  <Bone className="h-3 w-16 rounded-[4px]" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -965,19 +1150,22 @@ export function BillingSkeleton() {
 
 export function SettingsSkeleton() {
   return (
-    <div className="w-full flex-1 px-6 py-6 sm:px-8">
-      <Bone className="h-8 w-36 rounded-[4px]" />
-      <div className="mt-8 flex gap-6">
-        <div className="hidden w-48 shrink-0 space-y-2 lg:block">
-          {Array.from({ length: 6 }).map((_, i) => (
+    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 md:flex-row md:gap-8 md:px-8 md:py-8">
+      <div className="w-full shrink-0 md:w-56">
+        <Bone className="h-8 w-32 rounded-[4px]" />
+        <Bone className="mt-2 h-4 w-48 rounded-[4px]" />
+        <div className="mt-6 space-y-2">
+          {Array.from({ length: 7 }).map((_, i) => (
             <Bone key={i} className="h-9 w-full rounded-[8px]" />
           ))}
         </div>
-        <div className="min-w-0 flex-1 space-y-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Bone key={i} className="h-24 w-full rounded-2xl" />
-          ))}
-        </div>
+      </div>
+      <div className="min-w-0 flex-1 space-y-4">
+        <Bone className="h-7 w-40 rounded-[4px]" />
+        <Bone className="h-4 w-64 max-w-full rounded-[4px]" />
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Bone key={i} className="h-28 w-full rounded-[12px]" />
+        ))}
       </div>
     </div>
   );
@@ -1002,26 +1190,56 @@ export function CreateProjectSkeleton() {
 
 export function NotificationsSkeleton() {
   return (
-    <div className="w-full flex-1 px-6 py-6 sm:px-8">
-      <Bone className="h-8 w-40 rounded-[4px]" />
-      <div className="mt-6 space-y-3">
+    <>
+      <div className="mb-4 flex flex-wrap gap-1.5">
+        <Bone className="h-9 w-14 rounded-[8px]" />
+        <Bone className="h-9 w-16 rounded-[8px]" />
+        <Bone className="h-9 w-14 rounded-[8px]" />
+      </div>
+      <div className="overflow-hidden rounded-[12px] border border-border bg-card">
         {Array.from({ length: 6 }).map((_, i) => (
-          <Bone key={i} className="h-16 w-full rounded-[12px]" />
+          <div
+            key={i}
+            className="flex items-start gap-3 border-b border-border px-4 py-3.5 last:border-b-0 sm:px-5"
+          >
+            <Bone className="mt-0.5 size-9 shrink-0 rounded-[8px]" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Bone className="h-4 w-[70%] rounded-[4px]" />
+              <Bone className="h-3 w-[40%] rounded-[4px]" />
+              <Bone className="h-3 w-16 rounded-[4px]" />
+            </div>
+          </div>
         ))}
       </div>
-    </div>
+    </>
   );
 }
 
 export function ActivitySkeleton() {
   return (
-    <div className="w-full flex-1 px-6 py-6 sm:px-8">
-      <Bone className="h-8 w-36 rounded-[4px]" />
-      <div className="mt-6 space-y-3">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <Bone key={i} className="h-14 w-full rounded-[12px]" />
+    <>
+      <div className="mb-4 max-w-md">
+        <Bone className="h-10 w-full rounded-[8px]" />
+      </div>
+      <div className="mb-4 flex flex-wrap gap-1.5">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Bone key={i} className="h-9 w-16 rounded-[8px]" />
         ))}
       </div>
-    </div>
+      <div className="overflow-hidden rounded-[12px] border border-border bg-card">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex items-start gap-3 border-b border-border px-4 py-3.5 last:border-b-0 sm:px-5"
+          >
+            <Bone className="mt-0.5 size-9 shrink-0 rounded-[8px]" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Bone className="h-4 w-[65%] rounded-[4px]" />
+              <Bone className="h-3 w-[40%] rounded-[4px]" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }

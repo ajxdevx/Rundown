@@ -1,8 +1,5 @@
-/** Reserved / already-taken portal slugs (mock uniqueness). */
-const TAKEN_SLUGS = new Set([
-  "acme-website",
-  "acme-website-redesign",
-]);
+/** Reserved / already-taken portal slugs. */
+const TAKEN_SLUGS = new Set<string>();
 
 export function slugifyProjectName(name: string): string {
   return name

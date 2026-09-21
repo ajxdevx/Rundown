@@ -5,13 +5,10 @@ import {
   ArrowRight,
   Check,
   CheckCircle2,
-  ChevronDown,
   CircleAlert,
   Clock,
   Copy,
   CreditCard,
-  Download,
-  Eye,
   FileText,
   FolderKanban,
   Link2,
@@ -25,29 +22,39 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  activeProjects as seedProjects,
-  dashboardActivity as seedDashboardActivity,
-  dashboardStats,
-  isNewAccount,
-  needsAttention as seedNeedsAttention,
-  recentPayments as seedPayments,
   type ActiveProject,
-  type DashboardActivityItem,
   type NeedsAttentionItem,
   type PaymentStatus,
   type ProjectStatus,
   type RecentPayment,
 } from "@/data/dashboardMock";
 import { useInitialLoading } from "@/hooks/useInitialLoading";
+import { appendActivity, useActivity } from "@/lib/activityStore";
+import {
+  getCreatedProjects,
+  getCreatedProjectById,
+  getCreatedProjectBySlug,
+  PROJECTS_CHANGED,
+  type CreatedProject,
+} from "@/lib/createProject";
+import { CLIENTS_CHANGED, getAllClients } from "@/lib/clientsStore";
 import { backgroundSync } from "@/lib/optimistic";
+import {
+  WORKSPACE_CHANGED,
+} from "@/lib/workspaceStore";
+import ContextMenu from "./ContextMenu";
+import MenuDropdown from "./MenuDropdown";
 import { useAuth } from "./AuthProvider";
+import ActivityList from "./ActivityList";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import DashboardTopBar from "./DashboardTopBar";
 import EmptyState from "./EmptyState";
 import { DashboardSkeleton } from "./skeletons";
 import { useToastOptional } from "./ToastProvider";
+import { useProjectModal } from "./ProjectModalProvider";
+import { useClientModal } from "./ClientModalProvider";
 import { ProgressBar } from "./ui/ProgressBar";
 import {
   paymentStatusIcon,
@@ -215,25 +222,6 @@ function SectionError({
   );
 }
 
-function activityIcon(category: DashboardActivityItem["category"]) {
-  switch (category) {
-    case "portal":
-      return Eye;
-    case "file":
-      return Download;
-    case "message":
-      return MessageSquare;
-    case "payment":
-      return CreditCard;
-    case "task":
-      return Check;
-    case "project":
-      return FolderKanban;
-    case "client":
-      return UserPlus;
-  }
-}
-
 function attentionIcon(kind: NeedsAttentionItem["kind"]) {
   switch (kind) {
     case "message":
@@ -262,149 +250,26 @@ function InvoiceMenu({
   showMarkPaid?: boolean;
   position: { x: number; y: number } | null;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) onClose();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("mousedown", onPointer);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("mousedown", onPointer);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open, onClose]);
-
-  if (!open || !position) return null;
-
-  const items = [
-    { id: "view", label: "View Invoice", icon: FileText, danger: false },
-    { id: "edit", label: "Edit Invoice", icon: Pencil, danger: false },
-    { id: "copy", label: "Copy Payment Link", icon: Link2, danger: false },
-    ...(showMarkPaid
-      ? [{ id: "paid", label: "Mark as Paid", icon: Check, danger: false }]
-      : []),
-    { id: "delete", label: "Delete Invoice", icon: Trash2, danger: true },
-  ] as const;
-
-  const top = Math.min(position.y, window.innerHeight - 260);
-  const left = Math.min(position.x, window.innerWidth - 220);
-
   return (
-    <div
-      ref={ref}
-      role="menu"
-      style={{ top, left }}
-      className="fixed z-[80] w-52 overflow-hidden rounded-[12px] border border-border bg-card p-1.5 shadow-[var(--shadow-popover)]"
-    >
-      {items.map((item) => (
-        <div key={item.id}>
-          {item.danger ? (
-            <div className="my-1 border-t border-border" />
-          ) : null}
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              onAction(item.id);
-              onClose();
-            }}
-            className={`flex w-full cursor-pointer items-center gap-2.5 rounded-[8px] px-3 py-2 text-left text-sm font-medium ${
-              item.danger
-                ? "text-danger hover:bg-danger-soft"
-                : "text-ink hover-soft"
-            }`}
-          >
-            <item.icon className="size-4 opacity-70" strokeWidth={1.75} />
-            {item.label}
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function SortDropdown({
-  value,
-  onChange,
-}: {
-  value: SortKey;
-  onChange: (v: SortKey) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const label = SORT_OPTIONS.find((o) => o.id === value)?.label ?? "Sort";
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("mousedown", onPointer);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("mousedown", onPointer);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  return (
-    <div className="relative shrink-0" ref={ref}>
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-[8px] border border-border bg-card px-3 text-sm font-medium text-muted hover:text-ink"
-      >
-        <span className="inline-grid text-left">
-          <span
-            className="invisible col-start-1 row-start-1 whitespace-nowrap"
-            aria-hidden
-          >
-            Sort: Deadline soonest
-          </span>
-          <span className="col-start-1 row-start-1 whitespace-nowrap">
-            Sort: {label}
-          </span>
-        </span>
-        <ChevronDown className="size-3.5 shrink-0 opacity-70" strokeWidth={1.75} />
-      </button>
-      {open ? (
-        <ul
-          role="listbox"
-          className="absolute right-0 z-50 mt-1.5 w-52 overflow-hidden rounded-[12px] border border-border bg-card p-1.5 shadow-[var(--shadow-popover)]"
-        >
-          {SORT_OPTIONS.map((opt) => (
-            <li key={opt.id}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={value === opt.id}
-                onClick={() => {
-                  onChange(opt.id);
-                  setOpen(false);
-                }}
-                className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-[8px] px-3 py-2 text-left text-sm text-ink hover-soft"
-              >
-                {opt.label}
-                {value === opt.id ? (
-                  <Check className="size-3.5 text-ink" strokeWidth={2.25} />
-                ) : null}
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
+    <ContextMenu
+      open={open}
+      onClose={onClose}
+      onAction={onAction}
+      position={position}
+      clampHeight={260}
+      items={[
+        { id: "view", label: "View Invoice", icon: FileText },
+        { id: "edit", label: "Edit Invoice", icon: Pencil },
+        { id: "copy", label: "Copy Payment Link", icon: Link2 },
+        {
+          id: "paid",
+          label: "Mark as Paid",
+          icon: Check,
+          hidden: !showMarkPaid,
+        },
+        { id: "delete", label: "Delete Invoice", icon: Trash2, danger: true },
+      ]}
+    />
   );
 }
 
@@ -419,81 +284,31 @@ function ProjectMenu({
   onAction: (action: string) => void;
   position?: { x: number; y: number } | null;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) onClose();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("mousedown", onPointer);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("mousedown", onPointer);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open, onClose]);
-
-  if (!open) return null;
-
-  const items = [
-    { id: "open", label: "Open Project", icon: FolderKanban, danger: false },
-    { id: "edit", label: "Edit Project", icon: Pencil, danger: false },
-    { id: "copy", label: "Copy Portal Link", icon: Copy, danger: false },
-    { id: "archive", label: "Archive", icon: Archive, danger: false },
-    { id: "delete", label: "Delete", icon: Trash2, danger: true },
-  ] as const;
-
-  const fixed = Boolean(position);
-  const clamped = position
-    ? {
-        top: Math.min(position.y, window.innerHeight - 220),
-        left: Math.min(position.x, window.innerWidth - 220),
-      }
-    : null;
-
   return (
-    <div
-      ref={ref}
-      role="menu"
-      style={clamped ?? undefined}
-      className={
-        fixed
-          ? "fixed z-[80] w-52 overflow-hidden rounded-[12px] border border-border bg-card p-1.5 shadow-[var(--shadow-popover)]"
-          : "absolute right-0 top-full z-40 mt-1.5 w-52 overflow-hidden rounded-[12px] border border-border bg-card p-1.5 shadow-[var(--shadow-popover)]"
-      }
-    >
-      {items.map((item) => (
-        <div key={item.id}>
-          {item.danger ? (
-            <div className="my-1 border-t border-border" />
-          ) : null}
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              onAction(item.id);
-              onClose();
-            }}
-            className={`flex w-full cursor-pointer items-center gap-2.5 rounded-[8px] px-3 py-2 text-left text-sm font-medium ${
-              item.danger
-                ? "text-danger hover:bg-danger-soft"
-                : "text-ink hover-soft"
-            }`}
-          >
-            <item.icon className="size-4 opacity-70" strokeWidth={1.75} />
-            {item.label}
-          </button>
-        </div>
-      ))}
-    </div>
+    <ContextMenu
+      open={open}
+      onClose={onClose}
+      onAction={onAction}
+      position={position}
+      clampHeight={220}
+      items={[
+        { id: "open", label: "Open Project", icon: FolderKanban },
+        { id: "edit", label: "Edit Project", icon: Pencil },
+        { id: "copy", label: "Copy Portal Link", icon: Copy },
+        { id: "archive", label: "Archive", icon: Archive },
+        { id: "delete", label: "Delete", icon: Trash2, danger: true },
+      ]}
+    />
   );
 }
 
-function NewWorkspace({ firstName }: { firstName: string }) {
+function NewWorkspace({
+  firstName,
+  onCreateProject,
+}: {
+  firstName: string;
+  onCreateProject: () => void;
+}) {
   return (
     <div className="flex min-h-[55vh] flex-col items-center justify-center px-6 py-16 text-center">
       <div className="mb-5 flex size-14 items-center justify-center rounded-[12px] bg-accent-soft text-ink">
@@ -505,13 +320,14 @@ function NewWorkspace({ firstName }: { firstName: string }) {
         clients a simple place to follow progress.
         {firstName ? ` Welcome, ${firstName}.` : ""}
       </p>
-      <Link
-        href="/projects/new"
+      <button
+        type="button"
+        onClick={onCreateProject}
         className="mt-8 inline-flex h-11 cursor-pointer items-center gap-2 rounded-[8px] btn-accent px-4 text-sm font-semibold"
       >
         <Plus className="size-4" strokeWidth={2.25} />
         Create First Project
-      </Link>
+      </button>
     </div>
   );
 }
@@ -526,19 +342,20 @@ export default function FreelancerDashboard({
   const router = useRouter();
   const { profile, user } = useAuth();
   const toast = useToastOptional();
+  const { openCreate, openEdit } = useProjectModal();
+  const { openAdd } = useClientModal();
   const loading = useInitialLoading(420);
-  const [projects, setProjects] = useState<ActiveProject[]>(seedProjects);
-  const [payments, setPayments] = useState<RecentPayment[]>(seedPayments);
-  const [attention] = useState<NeedsAttentionItem[]>(seedNeedsAttention);
-  const [activity, setActivity] = useState<DashboardActivityItem[]>(
-    seedDashboardActivity,
-  );
+  const activity = useActivity();
+  const [projects, setProjects] = useState<ActiveProject[]>([]);
+  const [payments, setPayments] = useState<RecentPayment[]>([]);
+  const [attention] = useState<NeedsAttentionItem[]>([]);
   const [paymentStats, setPaymentStats] = useState({
-    outstanding: dashboardStats.outstanding,
-    outstandingInvoices: dashboardStats.outstandingInvoices,
-    collected: dashboardStats.collected,
-    collectedPeriod: dashboardStats.collectedPeriod,
+    outstanding: 0,
+    outstandingInvoices: 0,
+    collected: 0,
+    collectedPeriod: "This month",
   });
+  const [clientCount, setClientCount] = useState(0);
   const [paymentsError, setPaymentsError] = useState(false);
   const [activityError, setActivityError] = useState(false);
   const [invoiceMenuId, setInvoiceMenuId] = useState<string | null>(null);
@@ -553,6 +370,50 @@ export default function FreelancerDashboard({
     null,
   );
   const [deleteTarget, setDeleteTarget] = useState<ActiveProject | null>(null);
+
+  useEffect(() => {
+    const mergeCreated = () => {
+      const created = getCreatedProjects();
+      const mapped: ActiveProject[] = created.map((p: CreatedProject) => {
+        const done = p.tasks.filter((t) => t.done).length;
+        const total = p.tasks.length;
+        const progress = total === 0 ? 0 : Math.round((done / total) * 100);
+        const currentTask =
+          p.tasks.find((t) => !t.done)?.name ||
+          (total > 0 ? "All tasks complete" : "No tasks yet");
+        return {
+          id: p.id,
+          slug: p.slug,
+          name: p.name,
+          client: p.clientName,
+          progress,
+          currentTask,
+          deadlineAt: p.deadline || "",
+          deadlineLabel: p.deadline ? "Deadline set" : "No deadline",
+          value: p.value ?? 0,
+          paid: 0,
+          paymentStatus: "due" as const,
+          status: p.status,
+          updatedAt: p.createdAt,
+          createdAt: p.createdAt,
+        };
+      });
+      setProjects(mapped);
+    };
+    mergeCreated();
+    const syncClients = () => setClientCount(getAllClients().length);
+    syncClients();
+    window.addEventListener(PROJECTS_CHANGED, mergeCreated);
+    window.addEventListener(CLIENTS_CHANGED, syncClients);
+    window.addEventListener(WORKSPACE_CHANGED, mergeCreated);
+    window.addEventListener(WORKSPACE_CHANGED, syncClients);
+    return () => {
+      window.removeEventListener(PROJECTS_CHANGED, mergeCreated);
+      window.removeEventListener(CLIENTS_CHANGED, syncClients);
+      window.removeEventListener(WORKSPACE_CHANGED, mergeCreated);
+      window.removeEventListener(WORKSPACE_CHANGED, syncClients);
+    };
+  }, []);
 
   const closeMenu = () => {
     setMenuId(null);
@@ -641,11 +502,61 @@ export default function FreelancerDashboard({
 
   const onMenuAction = (project: ActiveProject, action: string) => {
     if (action === "open") {
-      window.location.href = `/projects/${project.slug}`;
+      router.push(`/projects/${project.slug}`);
       return;
     }
     if (action === "edit") {
-      window.location.href = `/projects/${project.slug}`;
+      const created =
+        getCreatedProjectById(project.id) ||
+        getCreatedProjectBySlug(project.slug);
+      openEdit({
+        initial: {
+          id: project.id,
+          name: project.name,
+          clientId: created?.clientId ?? null,
+          clientName: created?.clientName ?? project.client,
+          clientEmail: created?.clientEmail ?? "",
+          description: created?.description ?? "",
+          value: created?.value ?? project.value,
+          currency: created?.currency ?? "USD",
+          deadline: created?.deadline ?? project.deadlineAt ?? "",
+          status: (created?.status ??
+            (project.status === "review" ? "active" : project.status)) as
+            | "active"
+            | "draft"
+            | "on-hold"
+            | "completed"
+            | "archived",
+          tasks: created?.tasks ?? [],
+        },
+        onSuccess: (values) => {
+          setProjects((list) =>
+            list.map((p) =>
+              p.id === project.id
+                ? {
+                    ...p,
+                    name: values.name,
+                    client: values.clientName,
+                    value: values.value ?? 0,
+                    status: values.status,
+                    deadlineAt: values.deadline || p.deadlineAt,
+                    deadlineLabel: values.deadline
+                      ? "Deadline set"
+                      : "No deadline",
+                    progress:
+                      values.tasks.length === 0
+                        ? 0
+                        : Math.round(
+                            (values.tasks.filter((t) => t.done).length /
+                              values.tasks.length) *
+                              100,
+                          ),
+                  }
+                : p,
+            ),
+          );
+        },
+      });
       return;
     }
     if (action === "copy") {
@@ -666,7 +577,19 @@ export default function FreelancerDashboard({
 
     const prevPayments = payments;
     const prevStats = paymentStats;
-    const prevActivity = activity;
+    const undoActivity = appendActivity({
+      id: `paid-${payment.id}-${Date.now()}`,
+      description: `Invoice ${payment.invoice} was paid`,
+      context: `${payment.client} · ${payment.project}`,
+      category: "invoices",
+      href: payment.href,
+      actorKind: "client",
+      actorName: payment.client,
+      projectName: payment.project,
+      clientName: payment.client,
+      amount: `$${payment.amount.toLocaleString()}`,
+      paymentStatus: "paid",
+    });
 
     setPayments((list) =>
       list.map((p) =>
@@ -689,23 +612,12 @@ export default function FreelancerDashboard({
       outstandingInvoices: Math.max(0, s.outstandingInvoices - 1),
       collected: s.collected + payment.amount,
     }));
-    setActivity((list) => [
-      {
-        id: `paid-${payment.id}-${Date.now()}`,
-        description: `Invoice ${payment.invoice} was paid`,
-        related: `${payment.client} · ${payment.project}`,
-        time: "Just now",
-        category: "payment",
-        href: payment.href,
-      },
-      ...list,
-    ]);
 
     void backgroundSync().then((r) => {
       if (!r.ok) {
         setPayments(prevPayments);
         setPaymentStats(prevStats);
-        setActivity(prevActivity);
+        undoActivity();
         toast?.error("Couldn't update the invoice. Try again.");
       }
     });
@@ -763,19 +675,20 @@ export default function FreelancerDashboard({
 
   const retryPayments = () => {
     setPaymentsError(false);
-    setPayments(seedPayments);
+    setPayments([]);
     setPaymentStats({
-      outstanding: dashboardStats.outstanding,
-      outstandingInvoices: dashboardStats.outstandingInvoices,
-      collected: dashboardStats.collected,
-      collectedPeriod: dashboardStats.collectedPeriod,
+      outstanding: 0,
+      outstandingInvoices: 0,
+      collected: 0,
+      collectedPeriod: "This month",
     });
   };
 
   const retryActivity = () => {
     setActivityError(false);
-    setActivity(seedDashboardActivity);
   };
+
+  const isEmptyWorkspace = projects.length === 0 && clientCount === 0;
 
   return (
     <div className="flex min-h-full flex-col">
@@ -785,28 +698,28 @@ export default function FreelancerDashboard({
         <DashboardSkeleton />
       ) : (
         <div className="w-full flex-1 px-4 py-6 sm:px-6 md:px-8 md:py-8">
-          {isNewAccount ? (
-            <NewWorkspace firstName={firstName} />
+          {isEmptyWorkspace ? (
+            <NewWorkspace firstName={firstName} onCreateProject={openCreate} />
           ) : (
             <>
               {/* Header */}
               <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <h2 className="page-title">
-                    {greeting}, {firstName}{" "}
-                    <span aria-hidden>👋</span>
+                    {greeting}, {firstName}
                   </h2>
                   <p className="mt-1.5 text-sm text-muted">
                     Here&apos;s what&apos;s happening across your projects.
                   </p>
                 </div>
-                <Link
-                  href="/projects/new"
+                <button
+                  type="button"
+                  onClick={() => openCreate()}
                   className="inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 self-start rounded-[8px] btn-accent px-4 text-sm font-semibold sm:self-auto"
                 >
                   <Plus className="size-4" strokeWidth={2.25} />
                   New Project
-                </Link>
+                </button>
               </div>
 
               {/* Summary */}
@@ -815,15 +728,15 @@ export default function FreelancerDashboard({
                   [
                     {
                       label: "Active Projects",
-                      value: String(activeCount || dashboardStats.activeProjects),
-                      support: `${dashboardStats.dueThisWeek} due this week`,
+                      value: String(activeCount),
+                      support: `0 due this week`,
                       href: "/projects",
                       valueClass: "text-ink",
                     },
                     {
                       label: "Total Clients",
-                      value: String(dashboardStats.totalClients),
-                      support: `${dashboardStats.activeClientsThisMonth} active this month`,
+                      value: String(clientCount),
+                      support: `${clientCount} total`,
                       href: "/clients",
                       valueClass: "text-ink",
                     },
@@ -831,14 +744,14 @@ export default function FreelancerDashboard({
                       label: "Outstanding",
                       value: formatMoney(paymentStats.outstanding),
                       support: `${paymentStats.outstandingInvoices} invoices`,
-                      href: "/projects/acme-website-redesign",
+                      href: "/projects",
                       valueClass: moneyToneClass("outstanding"),
                     },
                     {
                       label: "Collected",
                       value: formatMoney(paymentStats.collected),
                       support: paymentStats.collectedPeriod,
-                      href: "/projects/acme-website-redesign",
+                      href: "/projects",
                       valueClass: moneyToneClass("collected"),
                     },
                   ] as const
@@ -892,7 +805,13 @@ export default function FreelancerDashboard({
                         </button>
                       ))}
                     </div>
-                    <SortDropdown value={sort} onChange={setSort} />
+                    <MenuDropdown
+                      value={sort}
+                      onChange={(v) => setSort(v as SortKey)}
+                      options={SORT_OPTIONS}
+                      labelPrefix="Sort: "
+                      widthLabel="Sort: Deadline soonest"
+                    />
                   </div>
                 </div>
 
@@ -914,7 +833,7 @@ export default function FreelancerDashboard({
                         filter === "active"
                           ? {
                               label: "Create Project",
-                              href: "/projects/new",
+                              onClick: () => openCreate(),
                               icon: Plus,
                             }
                           : undefined
@@ -1123,7 +1042,7 @@ export default function FreelancerDashboard({
                         description="Create your first invoice to start tracking project payments."
                         action={{
                           label: "Create Invoice",
-                          href: "/projects/acme-website-redesign",
+                          href: "/projects",
                           icon: Plus,
                         }}
                         compact
@@ -1355,48 +1274,16 @@ export default function FreelancerDashboard({
                       description="Try again to see the latest workspace activity."
                       onRetry={retryActivity}
                     />
-                  ) : activity.length === 0 ? (
-                    <EmptyState
-                      icon={FolderKanban}
-                      title="No activity yet"
-                      description="Project and client activity will appear here as your workspace gets moving."
-                      compact
-                    />
                   ) : (
-                    <ul>
-                      {activity.slice(0, 6).map((item) => {
-                        const Icon = activityIcon(item.category);
-                        return (
-                          <li
-                            key={item.id}
-                            className="border-b border-border last:border-0"
-                          >
-                            <Link
-                              href={item.href}
-                              className="flex items-start gap-3 px-5 py-4 transition-colors hover:bg-surface-hover"
-                            >
-                              <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-surface text-muted">
-                                <Icon
-                                  className="size-4"
-                                  strokeWidth={1.75}
-                                />
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium text-ink">
-                                  {item.description}
-                                </p>
-                                <p className="mt-1 text-xs text-muted">
-                                  {item.related}
-                                </p>
-                              </div>
-                              <span className="shrink-0 text-xs text-muted-soft">
-                                {item.time}
-                              </span>
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                    <ActivityList
+                      items={activity}
+                      limit={6}
+                      showGroups={false}
+                      compact
+                      bare
+                      emptyTitle="No activity yet"
+                      emptyDescription="Project and client activity will appear here as your workspace gets moving."
+                    />
                   )}
                 </div>
               </div>
@@ -1408,54 +1295,68 @@ export default function FreelancerDashboard({
                   description="Get things done without leaving your Dashboard."
                 />
                 <div className="grid grid-cols-3 gap-3">
-                  {(
-                    [
-                      {
-                        href: "/projects/new",
-                        icon: FolderKanban,
-                        title: "New Project",
-                        description:
-                          "Set up a project and invite your client.",
-                      },
-                      {
-                        href: "/clients/new",
-                        icon: UserPlus,
-                        title: "Add Client",
-                        description: "Add a client to your workspace.",
-                      },
-                      {
-                        href: "/projects/acme-website-redesign",
-                        icon: FileText,
-                        title: "Create Invoice",
-                        description: "Create and share a project invoice.",
-                      },
-                    ] as const
-                  ).map((action) => (
-                    <Link
-                      key={action.title}
-                      href={action.href}
-                      className="group flex items-center gap-3 rounded-[8px] border border-border bg-card px-4 py-3.5 outline-none transition-colors hover:border-border-strong hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-ink/20"
-                    >
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-surface text-muted">
-                        <action.icon
-                          className="size-4"
-                          strokeWidth={1.75}
-                        />
+                  <button
+                    type="button"
+                    onClick={() => openCreate()}
+                    className="group flex items-center gap-3 rounded-[8px] border border-border bg-card px-4 py-3.5 text-left outline-none transition-colors hover:border-border-strong hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-ink/20"
+                  >
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-surface text-muted">
+                      <FolderKanban className="size-4" strokeWidth={1.75} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium text-ink">
+                        New Project
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium text-ink">
-                          {action.title}
-                        </span>
-                        <span className="mt-0.5 block text-xs leading-snug text-muted">
-                          {action.description}
-                        </span>
+                      <span className="mt-0.5 block text-xs leading-snug text-muted">
+                        Set up a project and invite your client.
                       </span>
-                      <ArrowRight
-                        className="size-5 shrink-0 text-muted opacity-60 transition-opacity group-hover:opacity-100"
-                        strokeWidth={1.75}
-                      />
-                    </Link>
-                  ))}
+                    </span>
+                    <ArrowRight
+                      className="size-5 shrink-0 text-muted opacity-60 transition-opacity group-hover:opacity-100"
+                      strokeWidth={1.75}
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openAdd()}
+                    className="group flex items-center gap-3 rounded-[8px] border border-border bg-card px-4 py-3.5 text-left outline-none transition-colors hover:border-border-strong hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-ink/20"
+                  >
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-surface text-muted">
+                      <UserPlus className="size-4" strokeWidth={1.75} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium text-ink">
+                        Add Client
+                      </span>
+                      <span className="mt-0.5 block text-xs leading-snug text-muted">
+                        Add a client to your workspace.
+                      </span>
+                    </span>
+                    <ArrowRight
+                      className="size-5 shrink-0 text-muted opacity-60 transition-opacity group-hover:opacity-100"
+                      strokeWidth={1.75}
+                    />
+                  </button>
+                  <Link
+                    href="/projects"
+                    className="group flex items-center gap-3 rounded-[8px] border border-border bg-card px-4 py-3.5 outline-none transition-colors hover:border-border-strong hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-ink/20"
+                  >
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-surface text-muted">
+                      <FileText className="size-4" strokeWidth={1.75} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium text-ink">
+                        Create Invoice
+                      </span>
+                      <span className="mt-0.5 block text-xs leading-snug text-muted">
+                        Create and share a project invoice.
+                      </span>
+                    </span>
+                    <ArrowRight
+                      className="size-5 shrink-0 text-muted opacity-60 transition-opacity group-hover:opacity-100"
+                      strokeWidth={1.75}
+                    />
+                  </Link>
                 </div>
               </div>
             </>

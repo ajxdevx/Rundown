@@ -70,7 +70,7 @@ export default function AccountMenu({
         <button
           type="button"
           role="menuitem"
-          onClick={() => go("/settings")}
+          onClick={() => go("/settings/profile")}
           className="flex w-full cursor-pointer items-center gap-3 rounded-[8px] px-3 py-2.5 text-left text-sm font-medium text-ink outline-none hover-soft focus-visible:ring-2 focus-visible:ring-ink/20"
         >
           <User className="size-4 shrink-0 text-muted" strokeWidth={1.75} />

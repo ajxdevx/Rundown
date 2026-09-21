@@ -1,152 +1,128 @@
-export type NotifCategory = "projects" | "payments" | "messages" | "clients";
+export type NotifCategory =
+  | "projects"
+  | "clients"
+  | "payments"
+  | "messages"
+  | "tasks"
+  | "files";
+
+export type NotifPriority = "normal" | "important" | "action";
 
 export type NotificationItem = {
   id: string;
+  workspaceId: string;
   title: string;
+  /** Project · Client style supporting line */
+  context: string;
   time: string;
+  /** ISO timestamp for sorting */
+  createdAt: string;
   timeGroup: "Today" | "Yesterday" | "Earlier";
   read: boolean;
   category: NotifCategory;
+  priority: NotifPriority;
   /** Destination path when clicked */
   href: string;
+  /** Optional financial amount shown with semantic color */
+  amount?: string;
+  paymentStatus?: "paid" | "due" | "overdue" | "processing" | "failed";
 };
 
-export type ActivityCategory =
-  | "projects"
-  | "clients"
-  | "files"
-  | "payments"
-  | "messages";
-
-export type ActivityItem = {
-  id: string;
-  description: string;
-  related: string;
-  time: string;
-  category: ActivityCategory;
-  href: string;
-};
-
+/** Seed belongs to default workspace `ws_acme`. */
 export const seedNotifications: NotificationItem[] = [
   {
     id: "n1",
-    title: "Sarah viewed Website Redesign",
-    time: "5 minutes ago",
+    workspaceId: "ws_acme",
+    title: "Sarah sent you a message",
+    context: "Website Redesign · Sarah",
+    time: "12 min ago",
+    createdAt: "2026-09-21T02:48:00.000Z",
     timeGroup: "Today",
     read: false,
-    category: "clients",
-    href: "/projects/acme-website-redesign",
+    category: "messages",
+    priority: "action",
+    href: "/projects/acme-website-redesign?tab=messages",
   },
   {
     id: "n2",
-    title: "Invoice INV-004 was paid",
-    time: "1 hour ago",
+    workspaceId: "ws_acme",
+    title: "Client approval required for Homepage Design",
+    context: "Website Redesign · Sarah",
+    time: "45 min ago",
+    createdAt: "2026-09-21T02:15:00.000Z",
     timeGroup: "Today",
     read: false,
-    category: "payments",
-    href: "/projects/acme-website-redesign",
+    category: "tasks",
+    priority: "action",
+    href: "/projects/acme-website-redesign?tab=tasks",
   },
   {
     id: "n3",
-    title: "Project deadline approaching — Website Redesign",
-    time: "3 hours ago",
+    workspaceId: "ws_acme",
+    title: "Invoice INV-004 is overdue",
+    context: "Website Redesign",
+    time: "2 hr ago",
+    createdAt: "2026-09-21T00:30:00.000Z",
     timeGroup: "Today",
     read: false,
-    category: "projects",
-    href: "/projects/acme-website-redesign",
+    category: "payments",
+    priority: "important",
+    href: "/projects/acme-website-redesign?tab=invoices",
+    amount: "$1,200",
+    paymentStatus: "overdue",
   },
   {
     id: "n4",
-    title: "Client downloaded Homepage.pdf",
+    workspaceId: "ws_acme",
+    title: "Sarah uploaded Final Design.pdf",
+    context: "Website Redesign · Files",
     time: "Yesterday",
+    createdAt: "2026-09-20T16:00:00.000Z",
     timeGroup: "Yesterday",
     read: true,
-    category: "clients",
-    href: "/projects/acme-website-redesign",
+    category: "files",
+    priority: "normal",
+    href: "/projects/acme-website-redesign?tab=files",
   },
   {
     id: "n5",
-    title: "New message from Sarah",
+    workspaceId: "ws_acme",
+    title: "Invoice INV-003 was paid",
+    context: "Website Redesign",
     time: "Yesterday",
+    createdAt: "2026-09-20T11:00:00.000Z",
     timeGroup: "Yesterday",
     read: true,
-    category: "messages",
-    href: "/projects/acme-website-redesign",
+    category: "payments",
+    priority: "normal",
+    href: "/projects/acme-website-redesign?tab=invoices",
+    amount: "$800",
+    paymentStatus: "paid",
   },
   {
     id: "n6",
-    title: "Invoice INV-003 is overdue",
+    workspaceId: "ws_acme",
+    title: "Website Redesign deadline is approaching",
+    context: "Due in 5 days · Acme Studio",
     time: "2 days ago",
+    createdAt: "2026-09-19T09:00:00.000Z",
     timeGroup: "Earlier",
     read: true,
-    category: "payments",
-    href: "/projects/acme-website-redesign",
-  },
-];
-
-export const seedActivity: ActivityItem[] = [
-  {
-    id: "a1",
-    description: "Client viewed Website Redesign portal",
-    related: "Sarah Johnson · Website Redesign",
-    time: "10 minutes ago",
-    category: "clients",
-    href: "/projects/acme-website-redesign",
-  },
-  {
-    id: "a2",
-    description: "Invoice #INV-003 was paid",
-    related: "Website Redesign",
-    time: "2 hours ago",
-    category: "payments",
-    href: "/projects/acme-website-redesign",
-  },
-  {
-    id: "a3",
-    description: "Homepage Design completed",
-    related: "Website Redesign",
-    time: "Yesterday",
     category: "projects",
+    priority: "important",
     href: "/projects/acme-website-redesign",
   },
   {
-    id: "a4",
-    description: "Homepage.pdf downloaded",
-    related: "Sarah Johnson · Website Redesign",
-    time: "Yesterday",
-    category: "files",
-    href: "/projects/acme-website-redesign",
-  },
-  {
-    id: "a5",
-    description: "Alex uploaded Brand Guidelines.pdf",
-    related: "Website Redesign",
-    time: "2 days ago",
-    category: "files",
-    href: "/projects/acme-website-redesign",
-  },
-  {
-    id: "a6",
-    description: "New message from Sarah",
-    related: "Website Redesign",
-    time: "2 days ago",
-    category: "messages",
-    href: "/projects/acme-website-redesign",
-  },
-  {
-    id: "a7",
-    description: "Project created — Brand Identity",
-    related: "Sarah Johnson",
+    id: "n7",
+    workspaceId: "ws_acme",
+    title: "Sarah requested changes to Homepage Design",
+    context: "Website Redesign · Tasks",
     time: "3 days ago",
-    category: "projects",
-    href: "/projects/acme-website-redesign",
-  },
-  {
-    id: "a8",
-    description: "Client returned to portal",
-    related: "Maya Chen · Lumen Health",
-    time: "4 days ago",
-    category: "clients",
-    href: "/clients/c3",
+    createdAt: "2026-09-18T14:00:00.000Z",
+    timeGroup: "Earlier",
+    read: true,
+    category: "tasks",
+    priority: "action",
+    href: "/projects/acme-website-redesign?tab=tasks",
   },
 ];
