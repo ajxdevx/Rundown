@@ -19,6 +19,9 @@ export type CreatedProjectTask = {
   description?: string;
   done: boolean;
   visibleToClient: boolean;
+  status?: "todo" | "in-progress" | "completed";
+  due?: string;
+  updatedAt?: string;
 };
 
 export type CreatedProject = {
@@ -106,12 +109,12 @@ function ensureProjectSeed() {
   const version = sessionStorage.getItem(SEEDED_KEY);
 
   // Refresh all non-deleted seed rows when seed version changes.
-  if (version !== "3") {
+  if (version !== "4") {
     const userProjects = existing.filter((p) => !seedIds.has(p.id));
     const seeds = SEED_PROJECTS.filter((p) => !deleted.has(p.id));
     writeStore([...seeds, ...userProjects]);
     seeds.forEach((p) => markSlugTaken(p.slug));
-    sessionStorage.setItem(SEEDED_KEY, "3");
+    sessionStorage.setItem(SEEDED_KEY, "4");
     return;
   }
 

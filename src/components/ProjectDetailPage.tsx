@@ -8,22 +8,29 @@ import {
   Download,
   ExternalLink,
   Eye,
+  EyeOff,
   FileArchive,
   FileImage,
   FileText,
   FolderKanban,
   GripVertical,
+  LayoutGrid,
+  LayoutList,
+  Link2,
   MessageSquare,
   MoreHorizontal,
   Pencil,
   Plus,
+  Search,
   Send,
   Trash2,
   Upload,
+  X,
+  Clock,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   emptyProjectDetail,
   type ProjectActivity,
@@ -33,6 +40,7 @@ import {
   type ProjectMessage,
   type ProjectStatus,
   type ProjectTask,
+  type ProjectTaskStatus,
 } from "@/data/projectDetailMock";
 import {
   seedProjectFiles,
@@ -53,7 +61,7 @@ import { backgroundSync } from "@/lib/optimistic";
 import { useProjectModal } from "@/components/ProjectModalProvider";
 import { AppCheckbox } from "@/components/ui/AppCheckbox";
 import type { ProjectFormEditValues } from "@/components/ProjectFormModal";
-import { deadlineLabelFromIso, deadlineToneClass } from "@/lib/deadlineLabel";
+import { deadlineLabelFromIso, deadlineToneClass, deadlineToneSurface } from "@/lib/deadlineLabel";
 import ActivityList from "./ActivityList";
 import ClientVisibleToggle from "./ClientVisibleToggle";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
@@ -63,17 +71,21 @@ import Dropdown from "./Dropdown";
 import { ProjectNotFound } from "./EdgeStates";
 import EmptyState from "./EmptyState";
 import Popup, { PopupCloseButton } from "./Popup";
-import SharePortalModal from "./SharePortalModal";
 import { ProjectDetailSkeleton } from "./skeletons";
 import { useToastOptional } from "./ToastProvider";
 import { ProgressBar } from "./ui/ProgressBar";
 import {
   paymentStatusIcon,
+  paymentStatusLabel,
   paymentStatusTone,
   projectStatusIcon,
   projectStatusTone,
+  taskStatusIcon,
+  taskStatusLabel,
+  taskStatusTone,
   StatusBadge,
 } from "./ui/StatusBadge";
+import MenuDropdown from "./MenuDropdown";
 
 type TabId = "overview" | "tasks" | "files" | "invoices" | "messages";
 
@@ -118,18 +130,31 @@ function moneyToneClass(status?: string | null) {
 }
 
 function paymentLabel(state: ProjectDetail["paymentState"]) {
-  switch (state) {
-    case "paid":
-      return "Paid";
-    case "due":
-      return "Unpaid";
-    case "overdue":
-      return "Past due";
-    case "processing":
-      return "Processing";
-    case "failed":
-      return "Failed";
+  return paymentStatusLabel(state);
+}
+
+function portalDisplayPath(portalUrl: string) {
+  try {
+    if (portalUrl.startsWith("http")) {
+      const u = new URL(portalUrl);
+      return `dueso.app${u.pathname}`;
+    }
+  } catch {
+    /* fall through */
   }
+  const path = portalUrl.startsWith("/") ? portalUrl : `/${portalUrl}`;
+  return `dueso.app${path}`;
+}
+
+function paymentMetricLabel(
+  remaining: number,
+  state: ProjectDetail["paymentState"],
+  currency: string,
+) {
+  if (state === "paid" || remaining <= 0) {
+    return "Paid";
+  }
+  return `${formatMoney(remaining, currency)} ${paymentLabel(state)}`;
 }
 
 function derivePaymentState(
@@ -218,22 +243,54 @@ function ProjectMenu({
   );
 }
 
+function dueLabel(relative: string) {
+  if (relative === "No deadline") return "No deadline";
+  if (relative.startsWith("In ")) return `Due ${relative.toLowerCase()}`;
+  if (relative === "Tomorrow") return "Due tomorrow";
+  if (relative === "Today") return "Due today";
+  return relative;
+}
+
+function OverviewSectionHead({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="mb-3">
+      <div className="flex items-center gap-3">
+        <h2 className="section-title">{title}</h2>
+        {action}
+      </div>
+      {description ? (
+        <p className="mt-1 text-sm text-muted">{description}</p>
+      ) : null}
+    </div>
+  );
+}
+
 function OverviewTab({
   project,
   tasks,
+  invoices,
   onGoTasks,
+  onOpenTask,
   onGoInvoices,
   onCopyLink,
-  onSharePortal,
-  onEdit,
+  onOpenPortal,
 }: {
   project: ProjectDetail;
   tasks: ProjectTask[];
+  invoices: ProjectInvoice[];
   onGoTasks: () => void;
+  onOpenTask: (id: string) => void;
   onGoInvoices: () => void;
   onCopyLink: () => void;
-  onSharePortal: () => void;
-  onEdit: () => void;
+  onOpenPortal: () => void;
 }) {
   const allActivity = useActivity();
   const activity = useMemo(
@@ -247,45 +304,101 @@ function OverviewTab({
     [allActivity, project.slug, project.name, project.id],
   );
   const { done, total, progress } = progressFromTasks(tasks);
-  const nextTasks = tasks.filter((t) => !t.done).slice(0, 3);
-  const currentTask =
-    nextTasks[0]?.name ||
-    (total > 0 ? "All tasks complete" : "No tasks yet");
+  const remainingTasks = Math.max(0, total - done);
+  const nextTask = tasks.find((t) => !t.done) ?? null;
   const visibleTasks = tasks.filter((t) => t.visibleToClient).length;
-  const sharedParts = [
-    visibleTasks > 0 ? "Tasks" : null,
-    "Files",
+  const outstandingInvoices = invoices.filter(
+    (i) => i.status !== "paid",
+  ).length;
+  const recentInvoices = invoices.slice(0, 4);
+  const clientCanSee = [
+    "Project progress",
+    visibleTasks > 0 ? "Visible tasks" : null,
+    "Client-visible files",
+    "Payment information",
     "Messages",
   ].filter(Boolean) as string[];
-  const portalHref = project.portalUrl.startsWith("http")
-    ? project.portalUrl
-    : typeof window !== "undefined"
-      ? `${window.location.origin}${project.portalUrl}`
-      : project.portalUrl;
+
+  const infoFields: { label: string; value: ReactNode }[] = [
+    {
+      label: "Client",
+      value:
+        project.clientId && project.client ? (
+          <Link
+            href={`/clients/${project.clientId}`}
+            className="font-medium text-ink hover:underline"
+          >
+            {project.client}
+          </Link>
+        ) : (
+          <span className="font-medium text-ink">No client</span>
+        ),
+    },
+    {
+      label: "Deadline",
+      value: (
+        <span className="font-medium text-ink">
+          {project.deadlineLabel &&
+          project.deadlineLabel !== "No deadline set"
+            ? project.deadlineLabel
+            : "No deadline"}
+        </span>
+      ),
+    },
+    {
+      label: "Project Value",
+      value: (
+        <span className="font-semibold text-ink">
+          {formatMoney(project.value, project.currency)}
+        </span>
+      ),
+    },
+    {
+      label: "Status",
+      value: (
+        <StatusBadge
+          label={statusLabel(project.status)}
+          tone={projectStatusTone(project.status)}
+          icon={projectStatusIcon(project.status)}
+        />
+      ),
+    },
+    {
+      label: "Created",
+      value: (
+        <span className="font-medium text-ink">{project.createdAt}</span>
+      ),
+    },
+  ];
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(17rem,0.9fr)]">
-      {/* Main column */}
-      <div className="min-w-0 space-y-6">
-        {/* Hero — one composition, not a dashboard strip */}
-        <section className="card-surface p-5 sm:p-6">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-muted">About this project</p>
-              <p className="mt-2 text-sm leading-relaxed text-ink">
-                {project.description || "No project description yet."}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onEdit}
-              className="shrink-0 text-sm font-medium text-muted hover:text-ink"
-            >
-              Edit
-            </button>
-          </div>
+    <div className="space-y-8">
+      {/* Progress + Payment — Dashboard Active Projects / Payments rhythm */}
+      <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.9fr)] xl:grid-rows-[auto_1fr] xl:gap-x-6 xl:gap-y-4">
+        <div className="min-w-0 xl:col-start-1 xl:row-start-1 [&_.mb-3]:xl:mb-0">
+          <OverviewSectionHead
+            title="Project Progress"
+            description="Track where the project stands."
+          />
+        </div>
+        <div className="order-3 min-w-0 xl:order-none xl:col-start-2 xl:row-start-1 [&_.mb-3]:xl:mb-0">
+          <OverviewSectionHead
+            title="Payment"
+            description="Keep track of this project's financial status."
+            action={
+              <button
+                type="button"
+                onClick={onGoInvoices}
+                className="text-sm font-medium text-muted hover:text-ink"
+              >
+                View all
+              </button>
+            }
+          />
+        </div>
 
-          <div className="mt-5">
+        <div className="min-w-0 space-y-3 xl:col-start-1 xl:row-start-2">
+          <section className="card-surface p-5 sm:p-6">
             {total === 0 ? (
               <EmptyState
                 icon={Check}
@@ -295,137 +408,183 @@ function OverviewTab({
                 compact
               />
             ) : (
-              <ProgressBar
-                value={progress}
-                label="Progress"
-                meta={`${progress}% · ${done} of ${total} done`}
+              <>
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <p className="text-2xl font-semibold tracking-tight text-ink">
+                      {progress}%
+                    </p>
+                    <p className="mt-1 text-sm text-muted">
+                      {done} of {total} tasks completed
+                    </p>
+                  </div>
+                  <div className="flex gap-6">
+                    <div>
+                      <p className="text-xs font-medium text-muted">
+                        Completed
+                      </p>
+                      <p className="mt-1 text-lg font-semibold tracking-tight text-ink">
+                        {done}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted">
+                        Remaining
+                      </p>
+                      <p className="mt-1 text-lg font-semibold tracking-tight text-ink">
+                        {remainingTasks}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <ProgressBar className="mt-4" value={progress} />
+              </>
+            )}
+          </section>
+
+          <div>
+            <div className="mb-3 flex items-center gap-3">
+              <h3 className="section-title">Next Up</h3>
+              <button
+                type="button"
+                onClick={onGoTasks}
+                className="text-sm font-medium text-muted hover:text-ink"
+              >
+                Open Tasks
+              </button>
+            </div>
+            {nextTask ? (
+              <TaskGridCard
+                task={nextTask}
+                onOpen={() => onOpenTask(nextTask.id)}
               />
+            ) : (
+              <div className="card-surface">
+                <EmptyState
+                  icon={Check}
+                  title={
+                    total > 0 ? "You're all caught up" : "Nothing queued yet"
+                  }
+                  description={
+                    total > 0
+                      ? "No outstanding tasks for this project."
+                      : "Add a task so the next step is clear."
+                  }
+                  action={{
+                    label: total > 0 ? "Open Tasks" : "Add Task",
+                    onClick: onGoTasks,
+                    icon: total > 0 ? undefined : Plus,
+                  }}
+                  compact
+                />
+              </div>
             )}
           </div>
+        </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 border-t border-border pt-5 sm:grid-cols-4">
-            <div className="min-w-0">
-              <p className="text-[11px] font-medium text-muted-soft">
-                Current task
-              </p>
-              <p className="mt-0.5 truncate text-sm font-medium text-ink">
-                {currentTask}
-              </p>
+        <div className="order-4 flex min-h-0 min-w-0 flex-col xl:order-none xl:col-start-2 xl:row-start-2">
+          <section className="card-surface flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="grid grid-cols-2 divide-x divide-border border-b border-border">
+              <div className="px-5 py-4">
+                <p className="text-xs font-medium text-muted">Outstanding</p>
+                <p
+                  className={`mt-1.5 text-xl font-semibold tracking-tight ${moneyToneClass(
+                    project.remaining > 0 ? "outstanding" : "paid",
+                  )}`}
+                >
+                  {formatMoney(project.remaining, project.currency)}
+                </p>
+                <p className="mt-1 text-xs text-muted-soft">
+                  Across {outstandingInvoices} invoice
+                  {outstandingInvoices === 1 ? "" : "s"}
+                </p>
+              </div>
+              <div className="px-5 py-4">
+                <p className="text-xs font-medium text-muted">Collected</p>
+                <p
+                  className={`mt-1.5 text-xl font-semibold tracking-tight ${moneyToneClass(
+                    "collected",
+                  )}`}
+                >
+                  {formatMoney(project.paid, project.currency)}
+                </p>
+                <p className="mt-1 text-xs text-muted-soft">
+                  of {formatMoney(project.value, project.currency)} total
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-medium text-muted-soft">Deadline</p>
-              <p
-                className={`mt-0.5 truncate text-sm font-medium ${deadlineToneClass(
-                  project.deadlineRelative,
-                )}`}
-              >
-                {project.deadlineRelative}
-              </p>
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-medium text-muted-soft">Value</p>
-              <p className="mt-0.5 truncate text-sm font-medium text-ink">
-                {formatMoney(project.value, project.currency)}
-              </p>
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-medium text-muted-soft">
-                {project.paid > 0 ? "Collected" : "Outstanding"}
-              </p>
-              <p
-                className={`mt-0.5 truncate text-sm font-medium ${moneyToneClass(
-                  project.paid > 0
-                    ? "collected"
-                    : project.remaining > 0
-                      ? "outstanding"
-                      : "paid",
-                )}`}
-              >
-                {formatMoney(
-                  project.paid > 0 ? project.paid : project.remaining || project.value,
-                  project.currency,
-                )}
-              </p>
-            </div>
-          </div>
-        </section>
 
-        {/* Next up — numbered focus list */}
-        <section>
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="section-title">Next up</h2>
-            <button
-              type="button"
-              onClick={onGoTasks}
-              className="text-sm font-medium text-muted hover:text-ink"
-            >
-              {nextTasks.length > 0 ? "All tasks" : "Add task"}
-            </button>
-          </div>
-          <div className="card-surface overflow-hidden">
-            {nextTasks.length > 0 ? (
-              <ul>
-                {nextTasks.map((task, i) => (
-                  <li
-                    key={task.id}
-                    className={`flex gap-3 px-5 py-4 ${
-                      i < nextTasks.length - 1 ? "border-b border-border" : ""
-                    }`}
-                  >
-                    <span
-                      className={`flex size-7 shrink-0 items-center justify-center rounded-[8px] text-xs font-semibold ${
-                        i === 0
-                          ? "bg-accent text-ink"
-                          : "bg-surface text-muted"
-                      }`}
-                    >
-                      {i + 1}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-ink">{task.name}</p>
-                      {task.description ? (
-                        <p className="mt-0.5 text-sm text-muted">
-                          {task.description}
-                        </p>
-                      ) : null}
-                    </div>
-                    {i === 0 ? (
-                      <span className="shrink-0 self-start text-[11px] font-medium text-muted-soft">
-                        Focus
-                      </span>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            ) : (
+            {recentInvoices.length === 0 ? (
               <EmptyState
-                icon={Check}
-                title="You're all caught up"
-                description="No outstanding tasks for this project."
+                icon={CreditCard}
+                title="No invoices yet"
+                description="Create an invoice to track payments on this project."
                 action={{
-                  label: "Add Task",
-                  onClick: onGoTasks,
+                  label: "View Invoices",
+                  onClick: onGoInvoices,
                   icon: Plus,
                 }}
                 compact
               />
+            ) : (
+              <ul className="min-h-0 flex-1">
+                {recentInvoices.map((inv) => (
+                  <li
+                    key={inv.id}
+                    className="border-b border-border last:border-0"
+                  >
+                    <button
+                      type="button"
+                      onClick={onGoInvoices}
+                      className="flex w-full items-start gap-3 px-5 py-4 text-left transition-colors hover:bg-surface-hover"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-medium text-ink">
+                            {inv.number} — {inv.title}
+                          </p>
+                          <StatusBadge
+                            label={paymentStatusLabel(inv.status)}
+                            tone={paymentStatusTone(inv.status)}
+                            icon={paymentStatusIcon(inv.status)}
+                          />
+                        </div>
+                        <p className="mt-1 text-xs text-muted">
+                          {project.client || "Client"} ·{" "}
+                          <span className={moneyToneClass(inv.status)}>
+                            {formatMoney(inv.amount, project.currency)}
+                          </span>
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-soft">
+                          Due {inv.due}
+                        </p>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
-          </div>
-        </section>
+          </section>
+        </div>
+      </div>
 
-        {/* Activity */}
-        <section>
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="section-title">Activity</h2>
-            {activity.length > 0 ? (
-              <Link
-                href={`/activity?project=${encodeURIComponent(project.slug)}`}
-                className="text-sm font-medium text-muted hover:text-ink"
-              >
-                View all
-              </Link>
-            ) : null}
-          </div>
+      {/* Recent Activity + Client Portal + Project Information */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 xl:gap-x-6">
+        <div className="min-w-0 md:col-span-2 xl:col-span-1">
+          <OverviewSectionHead
+            title="Recent Activity"
+            description="See what's been happening on this project."
+            action={
+              activity.length > 0 ? (
+                <Link
+                  href={`/activity?project=${encodeURIComponent(project.slug)}`}
+                  className="text-sm font-medium text-muted hover:text-ink"
+                >
+                  View all
+                </Link>
+              ) : undefined
+            }
+          />
           <div className="card-surface overflow-hidden">
             <ActivityList
               items={activity}
@@ -437,167 +596,595 @@ function OverviewTab({
               emptyDescription="Project activity will appear here as work gets moving."
             />
           </div>
-        </section>
-      </div>
+        </div>
 
-      {/* Side rail */}
-      <aside className="min-w-0 space-y-4 lg:sticky lg:top-20 lg:self-start">
-        {/* Portal spotlight */}
-        <section className="overflow-hidden rounded-[var(--radius-md)] border border-accent/35 bg-accent-soft/50 p-5">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-ink">Client portal</p>
-            <StatusBadge
-              label="Live"
-              tone={projectStatusTone("active")}
-              icon={projectStatusIcon("active")}
-            />
-          </div>
-          <p className="mt-2 text-sm leading-relaxed text-ink/80">
-            {sharedParts.length > 0
-              ? `Sharing ${sharedParts.join(", ").toLowerCase()} with your client.`
-              : "Nothing is visible to the client yet."}
-          </p>
-          <p className="mt-1.5 text-xs text-muted">
-            Last viewed {project.lastPortalView}
-          </p>
-          <div className="mt-4 flex flex-col gap-2">
-            <a
-              href={portalHref}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-[8px] btn-secondary px-3.5 text-sm font-medium"
-            >
-              <ExternalLink className="size-3.5" strokeWidth={1.75} />
-              Open portal
-            </a>
-            <div className="flex gap-2">
+        <div className="min-w-0">
+          <OverviewSectionHead
+            title="Client Portal"
+            description="Control what your client can see."
+          />
+          <section className="card-surface flex flex-col p-5 sm:p-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-ink">Client Portal</p>
+              <StatusBadge
+                label="Active"
+                tone={projectStatusTone("active")}
+                icon={projectStatusIcon("active")}
+              />
+            </div>
+            <dl className="mt-4 space-y-3 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted">Visible to</dt>
+                <dd className="truncate font-medium text-ink">
+                  {project.client || "No client"}
+                </dd>
+              </div>
+              <div className="flex flex-col gap-1">
+                <dt className="text-muted">Link</dt>
+                <dd className="truncate font-mono text-xs text-ink">
+                  {portalDisplayPath(project.portalUrl)}
+                </dd>
+              </div>
+            </dl>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onOpenPortal}
+                className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-[8px] btn-accent px-3.5 text-sm font-medium"
+              >
+                <ExternalLink className="size-3.5" strokeWidth={1.75} />
+                Open Portal
+              </button>
               <button
                 type="button"
                 onClick={onCopyLink}
-                className="inline-flex h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[8px] border border-border bg-card px-3 text-sm font-medium text-ink hover-soft"
+                className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-[8px] btn-secondary px-3.5 text-sm font-medium"
               >
                 <Copy className="size-3.5" strokeWidth={1.75} />
-                Copy link
-              </button>
-              <button
-                type="button"
-                onClick={onSharePortal}
-                className="inline-flex h-9 flex-1 cursor-pointer items-center justify-center rounded-[8px] border border-border bg-card px-3 text-sm font-medium text-ink hover-soft"
-              >
-                Share
+                Copy Link
               </button>
             </div>
-          </div>
-        </section>
-
-        {/* Payment snapshot */}
-        <section className="card-surface p-5">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-ink">Payment</p>
-            <StatusBadge
-              label={paymentLabel(project.paymentState)}
-              tone={paymentStatusTone(project.paymentState)}
-              icon={paymentStatusIcon(project.paymentState)}
-            />
-          </div>
-          <div className="mt-4 space-y-2.5 text-sm">
-            <div className="flex justify-between gap-3">
-              <span className="text-muted">Total</span>
-              <span className="font-medium text-ink">
-                {formatMoney(project.value, project.currency)}
-              </span>
-            </div>
-            <div className="flex justify-between gap-3">
-              <span className="text-muted">Collected</span>
-              <span className={`font-medium ${moneyToneClass("collected")}`}>
-                {formatMoney(project.paid, project.currency)}
-              </span>
-            </div>
-            <div className="flex justify-between gap-3 border-t border-border pt-2.5">
-              <span className="text-muted">Left</span>
-              <span
-                className={`font-medium ${moneyToneClass(
-                  project.remaining > 0 ? "outstanding" : "paid",
-                )}`}
-              >
-                {formatMoney(project.remaining, project.currency)}
-              </span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onGoInvoices}
-            className="mt-4 inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-[8px] border border-border px-3.5 text-sm font-medium text-ink hover-soft"
-          >
-            View invoices
-          </button>
-        </section>
-
-        {/* Quick facts */}
-        <section className="card-surface p-5">
-          <p className="text-sm font-semibold text-ink">Details</p>
-          <dl className="mt-3 space-y-3 text-sm">
-            <div className="flex justify-between gap-3">
-              <dt className="text-muted">Client</dt>
-              <dd className="truncate font-medium text-ink">
-                {project.clientId && project.client ? (
-                  <Link
-                    href={`/clients/${project.clientId}`}
-                    className="hover:underline"
+            <div className="mt-5 border-t border-border pt-4">
+              <p className="text-xs font-medium text-muted">Client can see</p>
+              <ul className="mt-2.5 flex flex-wrap gap-1.5">
+                {clientCanSee.map((item) => (
+                  <li
+                    key={item}
+                    className="rounded-md bg-surface px-2 py-0.5 text-[11px] font-medium text-muted"
                   >
-                    {project.client}
-                  </Link>
-                ) : (
-                  "No client"
-                )}
-              </dd>
+                    {item}
+                  </li>
+                ))}
+              </ul>
             </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-muted">Status</dt>
-              <dd className="font-medium text-ink">
-                {statusLabel(project.status)}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-muted">Created</dt>
-              <dd className="font-medium text-ink">{project.createdAt}</dd>
-            </div>
-          </dl>
-        </section>
-      </aside>
+          </section>
+        </div>
+
+        <div className="min-w-0">
+          <OverviewSectionHead
+            title="Project Information"
+            description="The essentials for this project."
+          />
+          <section className="card-surface overflow-hidden">
+            <dl>
+              {infoFields.map((field, i) => (
+                <div
+                  key={field.label}
+                  className={`flex items-center justify-between gap-3 px-5 py-3.5 text-sm ${
+                    i < infoFields.length - 1 ? "border-b border-border" : ""
+                  }`}
+                >
+                  <dt className="shrink-0 text-muted">{field.label}</dt>
+                  <dd className="min-w-0 truncate text-right">{field.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        </div>
+      </div>
     </div>
   );
 }
+
+function resolveTaskStatus(task: ProjectTask): ProjectTaskStatus {
+  if (task.status) return task.status;
+  return task.done ? "completed" : "todo";
+}
+
+function isDueSoon(due?: string) {
+  if (!due) return false;
+  const t = due.trim().toLowerCase();
+  return t === "tomorrow" || t === "today" || t.includes("due soon");
+}
+
+function isOverdue(due?: string) {
+  if (!due) return false;
+  const t = due.trim().toLowerCase();
+  return t.includes("overdue") || t.includes("late");
+}
+
+function taskDueLabel(due?: string, completed?: boolean) {
+  if (completed) return "Completed";
+  if (!due?.trim()) return "No deadline";
+  return due.trim();
+}
+
+/** Pill chip for relative due states; muted text for calendar dates. */
+function TaskDueBadge({
+  due,
+  completed,
+  withPrefix = false,
+}: {
+  due?: string;
+  completed?: boolean;
+  withPrefix?: boolean;
+}) {
+  const label = taskDueLabel(due, completed);
+  const display = label === "No deadline" ? "—" : label;
+  const surface = deadlineToneSurface(label);
+
+  const value = surface ? (
+    <span className={surface}>
+      <Clock className="size-3 shrink-0" strokeWidth={2.25} aria-hidden />
+      <span className="truncate">{display}</span>
+    </span>
+  ) : (
+    <span className="truncate text-[11px] font-medium text-muted">{display}</span>
+  );
+
+  if (!withPrefix) return value;
+  return (
+    <span className="inline-flex max-w-full items-center gap-1.5 text-xs">
+      <span className="shrink-0 font-medium text-muted-soft">Due:</span>
+      {value}
+    </span>
+  );
+}
+
+function TaskVisibilityLabel({ visible }: { visible: boolean }) {
+  return (
+    <span className="text-xs text-muted">{visible ? "Visible" : "Private"}</span>
+  );
+}
+
+function TaskRowMenu({
+  open,
+  onClose,
+  onAction,
+  position,
+  status,
+  visibleToClient,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onAction: (action: string) => void;
+  position?: { x: number; y: number } | null;
+  status: ProjectTaskStatus;
+  visibleToClient: boolean;
+}) {
+  return (
+    <ContextMenu
+      open={open}
+      onClose={onClose}
+      onAction={onAction}
+      position={position}
+      clampHeight={360}
+      items={[
+        { id: "open", label: "Open Task", icon: FolderKanban },
+        { id: "edit", label: "Edit Task", icon: Pencil },
+        {
+          id: "todo",
+          label: "Mark To Do",
+          icon: taskStatusIcon("todo"),
+          hidden: status === "todo",
+        },
+        {
+          id: "progress",
+          label: "Mark In Progress",
+          icon: taskStatusIcon("in-progress"),
+          hidden: status === "in-progress",
+        },
+        {
+          id: "complete",
+          label: "Mark Completed",
+          icon: Check,
+          hidden: status === "completed",
+        },
+        {
+          id: "visibility",
+          label: visibleToClient ? "Hide from client" : "Show to client",
+          icon: visibleToClient ? EyeOff : Eye,
+          dividerBefore: true,
+        },
+        {
+          id: "delete",
+          label: "Delete Task",
+          icon: Trash2,
+          danger: true,
+          dividerBefore: true,
+        },
+      ]}
+    />
+  );
+}
+
+/** Grid / Next Up card — shared so Overview matches Tasks grid. */
+function TaskGridCard({
+  task,
+  onToggleDone,
+  onOpen,
+  onContextMenu,
+  menu,
+}: {
+  task: ProjectTask;
+  onToggleDone?: () => void;
+  onOpen?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
+  menu?: ReactNode;
+}) {
+  const status = resolveTaskStatus(task);
+  const completed = status === "completed";
+
+  return (
+    <div
+      role={onOpen ? "button" : undefined}
+      tabIndex={onOpen ? 0 : undefined}
+      onClick={(e) => {
+        if (!onOpen) return;
+        const t = e.target as HTMLElement;
+        if (
+          t.closest("button") ||
+          t.closest("a") ||
+          t.closest("[role='menu']")
+        ) {
+          return;
+        }
+        onOpen();
+      }}
+      onKeyDown={(e) => {
+        if (!onOpen) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      onContextMenu={onContextMenu}
+      className={`card-surface-interactive flex flex-col p-3.5 ${
+        onOpen ? "cursor-pointer" : ""
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          {onToggleDone ? (
+            <button
+              type="button"
+              data-hover-stop
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleDone();
+              }}
+              aria-label={completed ? "Mark incomplete" : "Mark complete"}
+              className="mt-0.5 shrink-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ink/20"
+            >
+              <AppCheckbox checked={completed} />
+            </button>
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <p
+                className={`truncate text-sm font-semibold ${
+                  completed ? "text-muted" : "text-ink"
+                }`}
+              >
+                {task.name}
+              </p>
+              <StatusBadge
+                label={taskStatusLabel(status)}
+                tone={taskStatusTone(status)}
+                icon={taskStatusIcon(status)}
+              />
+            </div>
+            {task.description ? (
+              <p className="mt-1.5 line-clamp-2 text-xs text-muted">
+                {task.description}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          {menu ? (
+            <div className="relative" data-hover-stop>
+              {menu}
+            </div>
+          ) : null}
+          <TaskDueBadge due={task.due} completed={completed} withPrefix />
+          <TaskVisibilityLabel visible={task.visibleToClient} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TaskDetailPopup({
+  task,
+  open,
+  onClose,
+  onSave,
+  onDelete,
+}: {
+  task: ProjectTask | null;
+  open: boolean;
+  onClose: () => void;
+  onSave: (next: ProjectTask) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [status, setStatus] = useState<ProjectTaskStatus>("todo");
+  const [due, setDue] = useState("");
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    if (!task || !open) return;
+    setName(task.name);
+    setDescription(task.description ?? "");
+    setStatus(resolveTaskStatus(task));
+    setDue(task.due ?? "");
+    setVisible(task.visibleToClient);
+  }, [task, open]);
+
+  if (!task) return null;
+
+  const save = () => {
+    const n = name.trim();
+    if (!n) return;
+    onSave({
+      ...task,
+      name: n,
+      description: description.trim() || undefined,
+      status,
+      done: status === "completed",
+      due: due.trim() || undefined,
+      visibleToClient: visible,
+      updatedAt: new Date().toISOString(),
+    });
+    onClose();
+  };
+
+  return (
+    <Popup open={open} onClose={onClose} labelledBy="task-detail-title">
+      <div className="relative w-[min(100vw-2rem,28rem)] bg-card p-6">
+        <div className="absolute right-3 top-3">
+          <PopupCloseButton onClick={onClose} />
+        </div>
+        <h2
+          id="task-detail-title"
+          className="pr-10 font-[family-name:var(--font-brand)] text-xl font-bold tracking-tight text-ink"
+        >
+          Task details
+        </h2>
+        <div className="mt-5 space-y-3">
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-muted">
+              Title
+            </span>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="input-field"
+              placeholder="Task title"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-muted">
+              Description
+            </span>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
+              className="input-field min-h-[6rem] resize-y"
+              placeholder="What needs to get done"
+            />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-muted">
+                Status
+              </span>
+              <Dropdown
+                aria-label="Task status"
+                value={status}
+                onChange={(v) => setStatus(v as ProjectTaskStatus)}
+                options={[
+                  { value: "todo", label: "To Do" },
+                  { value: "in-progress", label: "In Progress" },
+                  { value: "completed", label: "Completed" },
+                ]}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-muted">
+                Due date
+              </span>
+              <input
+                value={due}
+                onChange={(e) => setDue(e.target.value)}
+                className="input-field"
+                placeholder="Optional — e.g. Sep 30"
+              />
+            </label>
+          </div>
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <ClientVisibleToggle visible={visible} onChange={setVisible} />
+            <TaskDueBadge due={due || undefined} completed={status === "completed"} />
+          </div>
+        </div>
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <button
+            type="button"
+            onClick={() => onDelete(task.id)}
+            className="inline-flex h-10 cursor-pointer items-center justify-center rounded-[8px] px-4 text-sm font-semibold text-danger hover:bg-danger-soft"
+          >
+            Delete Task
+          </button>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-[8px] btn-secondary px-4 text-sm font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={save}
+              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-[8px] btn-accent px-4 text-sm font-semibold"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    </Popup>
+  );
+}
+
+const TASK_FILTER_CHIPS = [
+  { id: "all", label: "All" },
+  { id: "todo", label: "To Do" },
+  { id: "in-progress", label: "In Progress" },
+  { id: "completed", label: "Completed" },
+  { id: "due-soon", label: "Due soon" },
+  { id: "overdue", label: "Overdue" },
+] as const;
+
+const TASK_SORT_OPTIONS = [
+  { id: "updated", label: "Recently Updated" },
+  { id: "due", label: "Due Date" },
+  { id: "created", label: "Created Date" },
+  { id: "name-asc", label: "Name A–Z" },
+  { id: "name-desc", label: "Name Z–A" },
+] as const;
+
+const taskChipClass = (active: boolean) =>
+  `h-8 cursor-pointer rounded-[8px] px-3 text-xs font-medium transition-colors ${
+    active
+      ? "bg-accent text-ink"
+      : "text-muted hover:bg-bg-hover hover:text-ink"
+  }`;
 
 function TasksTab({
   tasks,
   setTasks,
   onActivity,
+  onOpenTask,
+  detailTaskId,
+  onCloseDetail,
 }: {
   tasks: ProjectTask[];
   setTasks: React.Dispatch<React.SetStateAction<ProjectTask[]>>;
   onActivity?: (text: string, category: ProjectActivity["category"]) => void;
+  onOpenTask: (id: string) => void;
+  detailTaskId: string | null;
+  onCloseDetail: () => void;
 }) {
   const toast = useToastOptional();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [addStatus, setAddStatus] = useState<ProjectTaskStatus>("todo");
+  const [addDue, setAddDue] = useState("");
   const [visible, setVisible] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const [dragId, setDragId] = useState<string | null>(null);
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(
+    null,
+  );
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [sort, setSort] = useState("updated");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const { done, total, progress } = progressFromTasks(tasks);
+  const remaining = Math.max(0, total - done);
 
   const syncFail = (msg: string) => toast?.error(msg);
+
+  const closeMenu = () => {
+    setMenuId(null);
+    setMenuPos(null);
+  };
+
+  const openMenuAt = (
+    id: string,
+    pos: { x: number; y: number } | null,
+  ) => {
+    if (menuId === id && !pos && !menuPos) {
+      closeMenu();
+      return;
+    }
+    setMenuId(id);
+    setMenuPos(pos);
+  };
+
+  const visibleTasks = useMemo(() => {
+    let list = [...tasks];
+    const q = query.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (t) =>
+          t.name.toLowerCase().includes(q) ||
+          (t.description?.toLowerCase().includes(q) ?? false),
+      );
+    }
+    if (filter === "todo") {
+      list = list.filter((t) => resolveTaskStatus(t) === "todo");
+    } else if (filter === "in-progress") {
+      list = list.filter((t) => resolveTaskStatus(t) === "in-progress");
+    } else if (filter === "completed") {
+      list = list.filter((t) => resolveTaskStatus(t) === "completed");
+    } else if (filter === "due-soon") {
+      list = list.filter(
+        (t) =>
+          resolveTaskStatus(t) !== "completed" && isDueSoon(t.due),
+      );
+    } else if (filter === "overdue") {
+      list = list.filter(
+        (t) =>
+          resolveTaskStatus(t) !== "completed" && isOverdue(t.due),
+      );
+    }
+
+    list.sort((a, b) => {
+      if (sort === "name-asc") return a.name.localeCompare(b.name);
+      if (sort === "name-desc") return b.name.localeCompare(a.name);
+      if (sort === "due") {
+        return (a.due || "zzz").localeCompare(b.due || "zzz");
+      }
+      if (sort === "created") {
+        return a.id.localeCompare(b.id);
+      }
+      // recently updated
+      return (b.updatedAt || "").localeCompare(a.updatedAt || "");
+    });
+    return list;
+  }, [tasks, query, filter, sort]);
 
   const toggleDone = (id: string) => {
     const prev = tasks;
     const task = tasks.find((t) => t.id === id);
     const nextDone = task ? !task.done : false;
     setTasks((list) =>
-      list.map((t) => (t.id === id ? { ...t, done: !t.done } : t)),
+      list.map((t) =>
+        t.id === id
+          ? {
+              ...t,
+              done: !t.done,
+              status: !t.done ? "completed" : "todo",
+              updatedAt: new Date().toISOString(),
+            }
+          : t,
+      ),
     );
     if (task && nextDone) {
       onActivity?.(`You completed ${task.name}`, "task");
@@ -611,18 +1198,58 @@ function TasksTab({
     });
   };
 
-  const toggleVisible = (id: string, next: boolean) => {
+  const setTaskStatus = (id: string, status: ProjectTaskStatus) => {
     const prev = tasks;
     setTasks((list) =>
-      list.map((t) => (t.id === id ? { ...t, visibleToClient: next } : t)),
+      list.map((t) =>
+        t.id === id
+          ? {
+              ...t,
+              status,
+              done: status === "completed",
+              updatedAt: new Date().toISOString(),
+            }
+          : t,
+      ),
     );
+    closeMenu();
     notifyProjectsChanged();
     void backgroundSync().then((r) => {
       if (!r.ok) {
         setTasks(prev);
-        syncFail("Couldn't update this setting.");
+        syncFail("Couldn't update the task. Try again.");
       }
     });
+  };
+
+  const setTaskVisibility = (id: string, visibleToClient: boolean) => {
+    const prev = tasks;
+    setTasks((list) =>
+      list.map((t) =>
+        t.id === id
+          ? { ...t, visibleToClient, updatedAt: new Date().toISOString() }
+          : t,
+      ),
+    );
+    closeMenu();
+    notifyProjectsChanged();
+    void backgroundSync().then((r) => {
+      if (!r.ok) {
+        setTasks(prev);
+        syncFail("Couldn't update visibility. Try again.");
+      }
+    });
+  };
+
+  const onMenuAction = (task: ProjectTask, action: string) => {
+    if (action === "open" || action === "edit") onOpenTask(task.id);
+    if (action === "todo") setTaskStatus(task.id, "todo");
+    if (action === "progress") setTaskStatus(task.id, "in-progress");
+    if (action === "complete") setTaskStatus(task.id, "completed");
+    if (action === "visibility")
+      setTaskVisibility(task.id, !task.visibleToClient);
+    if (action === "delete") setDeleteId(task.id);
+    closeMenu();
   };
 
   const addTask = () => {
@@ -633,12 +1260,17 @@ function TasksTab({
       id: `task_${Date.now()}`,
       name: n,
       description: description.trim() || undefined,
-      done: false,
+      done: addStatus === "completed",
+      status: addStatus,
+      due: addDue.trim() || undefined,
       visibleToClient: visible,
+      updatedAt: new Date().toISOString(),
     };
     setTasks((list) => [...list, task]);
     setName("");
     setDescription("");
+    setAddStatus("todo");
+    setAddDue("");
     setVisible(true);
     setAdding(false);
     onActivity?.(`You added ${n}`, "task");
@@ -651,42 +1283,14 @@ function TasksTab({
     });
   };
 
-  const startEdit = (task: ProjectTask) => {
-    setEditingId(task.id);
-    setEditName(task.name);
-    setEditDescription(task.description || "");
-  };
-
-  const saveEdit = () => {
-    if (!editingId) return;
-    const n = editName.trim();
-    if (!n) return;
-    const prev = tasks;
-    setTasks((list) =>
-      list.map((t) =>
-        t.id === editingId
-          ? {
-              ...t,
-              name: n,
-              description: editDescription.trim() || undefined,
-            }
-          : t,
-      ),
-    );
-    setEditingId(null);
-    notifyProjectsChanged();
-    void backgroundSync().then((r) => {
-      if (!r.ok) {
-        setTasks(prev);
-        syncFail("Couldn't update the task. Try again.");
-      }
-    });
-  };
-
   const confirmDelete = () => {
     if (!deleteId) return;
     const prev = tasks;
-    setTasks((list) => list.filter((t) => t.id !== deleteId));
+    const id = deleteId;
+    setTasks((list) => list.filter((t) => t.id !== id));
+    setDeleteId(null);
+    closeMenu();
+    if (detailTaskId === id) onCloseDetail();
     notifyProjectsChanged();
     void backgroundSync().then((r) => {
       if (!r.ok) {
@@ -696,60 +1300,165 @@ function TasksTab({
     });
   };
 
-  const onDrop = (targetId: string) => {
-    if (!dragId || dragId === targetId) {
-      setDragId(null);
-      return;
-    }
-    const prev = tasks;
-    setTasks((list) => {
-      const from = list.findIndex((t) => t.id === dragId);
-      const to = list.findIndex((t) => t.id === targetId);
-      if (from < 0 || to < 0) return list;
-      const next = [...list];
-      const [item] = next.splice(from, 1);
-      next.splice(to, 0, item);
-      return next;
-    });
-    setDragId(null);
-    void backgroundSync().then((r) => {
-      if (!r.ok) {
-        setTasks(prev);
-        syncFail("Couldn't reorder tasks. Try again.");
-      }
-    });
-  };
-
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h3 className="section-title">Tasks</h3>
-          <p className="mt-0.5 text-sm text-muted">
-            {done} of {total} completed
+          <h2 className="section-title">Tasks</h2>
+          <p className="mt-1 text-sm text-muted">
+            Keep the work moving and see what&apos;s left to complete.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="inline-flex h-10 cursor-pointer items-center gap-2 self-start rounded-[8px] btn-accent px-4 text-sm font-semibold"
-        >
-          <Plus className="size-4" strokeWidth={2.25} />
-          Add Task
-        </button>
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {total > 0 ? (
+            <div
+              role="group"
+              aria-label="Task layout"
+              className="inline-flex h-11 items-center gap-0.5 rounded-[8px] border border-border bg-card p-1"
+            >
+              <button
+                type="button"
+                aria-pressed={viewMode === "list"}
+                onClick={() => setViewMode("list")}
+                className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ink/20 ${
+                  viewMode === "list"
+                    ? "bg-surface text-ink"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                <LayoutList className="size-3.5" strokeWidth={1.75} />
+                List
+              </button>
+              <button
+                type="button"
+                aria-pressed={viewMode === "grid"}
+                onClick={() => setViewMode("grid")}
+                className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ink/20 ${
+                  viewMode === "grid"
+                    ? "bg-surface text-ink"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                <LayoutGrid className="size-3.5" strokeWidth={1.75} />
+                Grid
+              </button>
+            </div>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-[8px] btn-accent px-4 text-sm font-semibold"
+          >
+            <Plus className="size-4" strokeWidth={2.25} />
+            Add Task
+          </button>
+        </div>
       </div>
 
+      {/* Progress — same card language as Overview Project Progress */}
+      {total > 0 ? (
+        <section className="card-surface p-5 sm:p-6">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-2xl font-semibold tracking-tight text-ink">
+                {progress}%
+              </p>
+              <p className="mt-1 text-sm text-muted">
+                {done} of {total} tasks completed
+              </p>
+            </div>
+            <div className="flex gap-6">
+              <div>
+                <p className="text-xs font-medium text-muted">Completed</p>
+                <p className="mt-1 text-lg font-semibold tracking-tight text-ink">
+                  {done}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted">Remaining</p>
+                <p className="mt-1 text-lg font-semibold tracking-tight text-ink">
+                  {remaining}
+                </p>
+              </div>
+            </div>
+          </div>
+          <ProgressBar className="mt-4" value={progress} />
+        </section>
+      ) : null}
+
+      {/* Controls — same search / chips / sort language as Projects */}
+      {total > 0 || query || filter !== "all" ? (
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative flex h-10 min-w-0 flex-1 items-center gap-2.5 rounded-[10px] border border-border bg-card px-3 transition-colors focus-within:border-border-strong lg:max-w-md">
+            <Search
+              className="size-4 shrink-0 text-muted"
+              strokeWidth={1.75}
+              aria-hidden
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search tasks..."
+              aria-label="Search tasks"
+              className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-muted-soft"
+            />
+            {query ? (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => setQuery("")}
+                className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[6px] text-muted hover:bg-surface-hover hover:text-ink"
+              >
+                <X className="size-3.5" strokeWidth={2} />
+              </button>
+            ) : null}
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
+            <div
+              role="group"
+              aria-label="Task status"
+              className="flex flex-wrap gap-1.5"
+            >
+              {TASK_FILTER_CHIPS.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setFilter(f.id)}
+                  className={taskChipClass(filter === f.id)}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <MenuDropdown
+              value={sort}
+              onChange={setSort}
+              options={TASK_SORT_OPTIONS}
+              labelPrefix="Sort: "
+              aria-label="Sort tasks"
+              widthLabel="Sort: Recently Updated"
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {/* Inline add */}
       {adding ? (
-        <div className="card-surface space-y-3 p-4">
+        <div className="card-surface space-y-3 p-4 sm:p-5">
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium text-muted">
-              Task name
+              Title
             </span>
             <input
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Task name"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") addTask();
+              }}
+              placeholder="Task title"
               className="input-field"
             />
           </label>
@@ -760,23 +1469,60 @@ function TasksTab({
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description (optional)"
-              rows={2}
-              className="w-full resize-none rounded-[8px] border border-border bg-card px-3.5 py-2.5 text-sm text-ink outline-none placeholder:text-muted-soft focus:border-ink"
+              placeholder="Optional — what needs to get done"
+              rows={3}
+              className="input-field min-h-[5.5rem] resize-y"
             />
           </label>
-          <ClientVisibleToggle visible={visible} onChange={setVisible} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-muted">
+                Status
+              </span>
+              <Dropdown
+                aria-label="New task status"
+                value={addStatus}
+                onChange={(v) => setAddStatus(v as ProjectTaskStatus)}
+                options={[
+                  { value: "todo", label: "To Do" },
+                  { value: "in-progress", label: "In Progress" },
+                  { value: "completed", label: "Completed" },
+                ]}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-muted">
+                Due date
+              </span>
+              <input
+                value={addDue}
+                onChange={(e) => setAddDue(e.target.value)}
+                placeholder="Optional — e.g. Sep 30"
+                className="input-field"
+              />
+            </label>
+          </div>
+          <div className="flex items-center justify-end">
+            <ClientVisibleToggle visible={visible} onChange={setVisible} />
+          </div>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={addTask}
-              className="h-9 rounded-[8px] btn-secondary px-4 text-sm font-medium"
+              className="h-9 rounded-[8px] btn-accent px-4 text-sm font-semibold"
             >
               Add Task
             </button>
             <button
               type="button"
-              onClick={() => setAdding(false)}
+              onClick={() => {
+                setAdding(false);
+                setName("");
+                setDescription("");
+                setAddStatus("todo");
+                setAddDue("");
+                setVisible(true);
+              }}
               className="h-9 rounded-[8px] border border-border px-4 text-sm font-medium text-muted hover-soft"
             >
               Cancel
@@ -785,12 +1531,13 @@ function TasksTab({
         </div>
       ) : null}
 
-      {tasks.length === 0 ? (
+      {/* List / Grid */}
+      {tasks.length === 0 && !adding ? (
         <div className="card-surface">
           <EmptyState
             icon={Check}
             title="No tasks yet"
-            description="Add tasks to start tracking project progress."
+            description="Add tasks to start tracking the work for this project."
             action={{
               label: "Add Task",
               icon: Plus,
@@ -799,115 +1546,212 @@ function TasksTab({
             compact
           />
         </div>
+      ) : visibleTasks.length === 0 ? (
+        <div className="card-surface px-5 py-8 text-center">
+          <p className="text-sm font-medium text-ink">No matching tasks</p>
+          <p className="mt-1 text-sm text-muted">
+            Try a different search or filter.
+          </p>
+        </div>
+      ) : viewMode === "grid" ? (
+        <ul className="grid gap-2.5 sm:grid-cols-2">
+          {visibleTasks.map((task) => (
+            <li key={task.id}>
+              <TaskGridCard
+                task={task}
+                onToggleDone={() => toggleDone(task.id)}
+                onOpen={() => onOpenTask(task.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  openMenuAt(task.id, { x: e.clientX, y: e.clientY });
+                }}
+                menu={
+                  <button
+                    type="button"
+                    data-hover-stop
+                    aria-label="Task actions"
+                    aria-expanded={menuId === task.id && !menuPos}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (menuId === task.id && !menuPos) {
+                        closeMenu();
+                      } else {
+                        const rect = (
+                          e.currentTarget as HTMLButtonElement
+                        ).getBoundingClientRect();
+                        openMenuAt(task.id, {
+                          x: Math.min(
+                            rect.right - 208,
+                            window.innerWidth - 220,
+                          ),
+                          y: rect.bottom + 6,
+                        });
+                      }
+                    }}
+                    className="flex size-8 cursor-pointer items-center justify-center rounded-[8px] text-muted hover-soft"
+                  >
+                    <MoreHorizontal className="size-4" strokeWidth={1.75} />
+                  </button>
+                }
+              />
+            </li>
+          ))}
+        </ul>
       ) : (
-        <>
-          <ul className="card-surface overflow-hidden">
-            {tasks.map((task, index) => (
-              <li
-                key={task.id}
-                draggable
-                onDragStart={() => setDragId(task.id)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => onDrop(task.id)}
-                className={`flex items-start gap-2 px-3 py-3 sm:gap-3 sm:px-4 ${
-                  index < tasks.length - 1 ? "border-b border-border" : ""
-                } ${dragId === task.id ? "opacity-60" : ""}`}
-              >
-                <span
-                  className="mt-0.5 cursor-grab text-muted-soft"
-                  aria-label="Drag to reorder"
+        <div className="card-surface overflow-hidden">
+          <div className="hidden border-b border-border px-5 py-2.5 text-[11px] font-medium text-muted-soft sm:grid sm:grid-cols-[minmax(0,1.6fr)_7.5rem_8rem_5.5rem_2.5rem] sm:gap-3">
+            <span>Task</span>
+            <span>Status</span>
+            <span>Due</span>
+            <span>Visibility</span>
+            <span className="sr-only">Actions</span>
+          </div>
+          <ul>
+            {visibleTasks.map((task) => {
+              const status = resolveTaskStatus(task);
+              const completed = status === "completed";
+              return (
+                <li
+                  key={task.id}
+                  className={`group relative border-b border-border last:border-0 ${
+                    completed ? "bg-card" : ""
+                  }`}
                 >
-                  <GripVertical className="size-4" strokeWidth={1.75} />
-                </span>
-                <button
-                  type="button"
-                  onClick={() => toggleDone(task.id)}
-                  aria-label={task.done ? "Mark incomplete" : "Mark complete"}
-                  className="mt-0.5 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ink/20"
-                >
-                  <AppCheckbox checked={task.done} />
-                </button>
-                <div className="min-w-0 flex-1">
-                  {editingId === task.id ? (
-                    <div className="space-y-2">
-                      <input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        className="input-field"
-                        aria-label="Edit task name"
-                      />
-                      <textarea
-                        value={editDescription}
-                        onChange={(e) => setEditDescription(e.target.value)}
-                        rows={2}
-                        className="w-full resize-none rounded-[8px] border border-border bg-card px-3.5 py-2.5 text-sm text-ink outline-none focus:border-ink"
-                        aria-label="Edit task description"
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={saveEdit}
-                          className="h-8 rounded-[8px] btn-secondary px-3 text-xs font-semibold"
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      const t = e.target as HTMLElement;
+                      if (
+                        t.closest("button") ||
+                        t.closest("a") ||
+                        t.closest("[role='menu']")
+                      ) {
+                        return;
+                      }
+                      onOpenTask(task.id);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onOpenTask(task.id);
+                      }
+                    }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      openMenuAt(task.id, { x: e.clientX, y: e.clientY });
+                    }}
+                    className="flex cursor-pointer items-start gap-3 px-4 py-3.5 transition-colors hover:bg-surface-hover has-[[data-hover-stop]:hover]:bg-transparent sm:grid sm:grid-cols-[minmax(0,1.6fr)_7.5rem_8rem_5.5rem_2.5rem] sm:items-center sm:gap-3 sm:px-5"
+                  >
+                    <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center">
+                      <button
+                        type="button"
+                        data-hover-stop
+                        onClick={() => toggleDone(task.id)}
+                        aria-label={
+                          completed ? "Mark incomplete" : "Mark complete"
+                        }
+                        className="mt-0.5 shrink-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ink/20 sm:mt-0"
+                      >
+                        <AppCheckbox checked={completed} />
+                      </button>
+                      <div className="min-w-0">
+                        <p
+                          className={`truncate text-sm font-medium ${
+                            completed ? "text-muted" : "text-ink"
+                          }`}
                         >
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingId(null)}
-                          className="h-8 rounded-[8px] border border-border px-3 text-xs font-medium text-muted"
-                        >
-                          Cancel
-                        </button>
+                          {task.name}
+                        </p>
+                        {task.description ? (
+                          <p className="mt-0.5 line-clamp-1 text-xs text-muted">
+                            {task.description}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
-                  ) : (
-                    <>
-                      <p
-                        className={`text-sm font-medium ${
-                          task.done ? "text-muted line-through" : "text-ink"
-                        }`}
+
+                    <div className="pl-8 sm:pl-0">
+                      <StatusBadge
+                        label={taskStatusLabel(status)}
+                        tone={taskStatusTone(status)}
+                        icon={taskStatusIcon(status)}
+                      />
+                    </div>
+
+                    <div className="pl-8 sm:pl-0">
+                      <TaskDueBadge
+                        due={task.due}
+                        completed={completed}
+                      />
+                    </div>
+
+                    <div className="pl-8 sm:pl-0">
+                      <TaskVisibilityLabel visible={task.visibleToClient} />
+                    </div>
+
+                    <div className="absolute right-3 top-3 sm:relative sm:right-auto sm:top-auto">
+                      <button
+                        type="button"
+                        data-hover-stop
+                        aria-label="Task actions"
+                        aria-expanded={menuId === task.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (menuId === task.id) {
+                            closeMenu();
+                            return;
+                          }
+                          const rect = (
+                            e.currentTarget as HTMLButtonElement
+                          ).getBoundingClientRect();
+                          openMenuAt(task.id, {
+                            x: Math.min(
+                              rect.right - 208,
+                              window.innerWidth - 220,
+                            ),
+                            y: rect.bottom + 6,
+                          });
+                        }}
+                        className="flex size-8 cursor-pointer items-center justify-center rounded-[8px] text-muted hover-soft"
                       >
-                        {task.name}
-                      </p>
-                      {task.description ? (
-                        <p className="mt-0.5 text-xs text-muted">
-                          {task.description}
-                        </p>
-                      ) : null}
-                    </>
-                  )}
-                </div>
-                <ClientVisibleToggle
-                  visible={task.visibleToClient}
-                  onChange={(next) => toggleVisible(task.id, next)}
-                />
-                <button
-                  type="button"
-                  aria-label="Edit task"
-                  onClick={() => startEdit(task)}
-                  className="flex size-8 cursor-pointer items-center justify-center rounded-[8px] text-muted hover-soft"
-                >
-                  <Pencil className="size-4" strokeWidth={1.75} />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Delete task"
-                  onClick={() => setDeleteId(task.id)}
-                  className="flex size-8 cursor-pointer items-center justify-center rounded-[8px] text-muted hover-soft hover:text-danger"
-                >
-                  <Trash2 className="size-4" strokeWidth={1.75} />
-                </button>
-              </li>
-            ))}
+                        <MoreHorizontal
+                          className="size-4"
+                          strokeWidth={1.75}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
-          <div className="card-surface px-5 py-4">
-            <ProgressBar
-              value={progress}
-              meta={`${done}/${total} · ${progress}% complete`}
-            />
-          </div>
-        </>
+        </div>
       )}
+
+      {menuId && menuPos ? (
+        <TaskRowMenu
+          open
+          position={menuPos}
+          status={resolveTaskStatus(
+            tasks.find((t) => t.id === menuId) ?? {
+              id: menuId,
+              name: "",
+              done: false,
+              visibleToClient: false,
+            },
+          )}
+          visibleToClient={
+            tasks.find((t) => t.id === menuId)?.visibleToClient ?? false
+          }
+          onClose={closeMenu}
+          onAction={(a) => {
+            const task = tasks.find((t) => t.id === menuId);
+            if (task) onMenuAction(task, a);
+            else closeMenu();
+          }}
+        />
+      ) : null}
 
       <ConfirmDeleteModal
         open={Boolean(deleteId)}
@@ -1371,8 +2215,9 @@ function InvoicesTab({
                 value={status}
                 onChange={(v) => setStatus(v as ProjectInvoice["status"])}
                 options={[
-                  { value: "due", label: "Unpaid" },
+                  { value: "due", label: "Due" },
                   { value: "paid", label: "Paid" },
+                  { value: "partial", label: "Partial" },
                   { value: "overdue", label: "Overdue" },
                   { value: "processing", label: "Processing" },
                   { value: "failed", label: "Failed" },
@@ -1444,9 +2289,7 @@ function InvoicesTab({
                   <p className="text-xs text-muted-soft">Due {inv.due}</p>
                   <div className="mt-1.5 flex sm:justify-end">
                     <StatusBadge
-                      label={
-                        inv.status.charAt(0).toUpperCase() + inv.status.slice(1)
-                      }
+                      label={paymentStatusLabel(inv.status)}
                       tone={paymentStatusTone(inv.status)}
                       icon={paymentStatusIcon(inv.status)}
                     />
@@ -1690,7 +2533,12 @@ function mapCreated(
             year: "numeric",
           })
         : "No deadline set",
-      deadlineLabel: created.deadline || "No deadline set",
+      deadlineLabel: created.deadline
+        ? new Date(created.deadline).toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+          })
+        : "No deadline set",
       deadlineRelative,
       daysRemaining: 0,
       overdue,
@@ -1712,6 +2560,9 @@ function mapCreated(
       description: t.description,
       done: t.done,
       visibleToClient: t.visibleToClient,
+      status: t.status,
+      due: t.due,
+      updatedAt: t.updatedAt,
     })),
   };
 }
@@ -1735,9 +2586,10 @@ export default function ProjectDetailPage({
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [invoices, setInvoices] = useState<ProjectInvoice[]>([]);
   const [isCreated, setIsCreated] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
+  const [detailDeleteId, setDetailDeleteId] = useState<string | null>(null);
 
   const tab: TabId =
     initialTab && VALID_TABS.has(initialTab)
@@ -1941,7 +2793,15 @@ export default function ProjectDetailPage({
             year: "numeric",
           })
         : "No deadline set",
-      deadlineRelative: values.deadline || "No deadline set",
+      deadlineLabel: values.deadline
+        ? new Date(values.deadline).toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+          })
+        : "No deadline set",
+      deadlineRelative: values.deadline
+        ? deadlineLabelFromIso(values.deadline)
+        : "No deadline",
       status: values.status,
       updatedAt: "Just now",
     }));
@@ -2021,8 +2881,9 @@ export default function ProjectDetailPage({
         ]}
       />
 
-      <div className="w-full flex-1 px-4 py-6 sm:px-6 md:px-8 md:py-8">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex w-full flex-1 flex-col px-4 py-6 sm:px-6 md:px-8 md:py-8">
+        {/* Header — same rhythm as Dashboard */}
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="page-title">{live.name}</h1>
@@ -2030,11 +2891,6 @@ export default function ProjectDetailPage({
                 label={statusLabel(live.status)}
                 tone={projectStatusTone(live.status)}
                 icon={projectStatusIcon(live.status)}
-              />
-              <StatusBadge
-                label={paymentLabel(live.paymentState)}
-                tone={paymentStatusTone(live.paymentState)}
-                icon={paymentStatusIcon(live.paymentState)}
               />
             </div>
             {live.clientId && live.client ? (
@@ -2049,13 +2905,24 @@ export default function ProjectDetailPage({
             )}
           </div>
 
-          <div className="flex shrink-0 items-center gap-2 self-start">
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            <a
+              href={portalAbsolute}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-[8px] btn-accent px-4 text-sm font-semibold"
+            >
+              <ExternalLink className="size-4" strokeWidth={2} />
+              Open Portal
+            </a>
             <button
               type="button"
-              onClick={() => setShareOpen(true)}
-              className="inline-flex h-10 cursor-pointer items-center rounded-[8px] btn-accent px-4 text-sm font-semibold"
+              onClick={() => void copyPortalLink()}
+              className="inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-[8px] btn-secondary px-4 text-sm font-semibold"
             >
-              Share Portal
+              <Link2 className="size-4" strokeWidth={1.75} />
+              <span className="hidden sm:inline">Copy Portal Link</span>
+              <span className="sm:hidden">Copy Link</span>
             </button>
             <div className="relative">
               <button
@@ -2063,7 +2930,7 @@ export default function ProjectDetailPage({
                 aria-label="Project actions"
                 aria-expanded={menuOpen}
                 onClick={() => setMenuOpen((v) => !v)}
-                className={`flex size-10 cursor-pointer items-center justify-center rounded-[8px] text-muted ${
+                className={`flex size-11 cursor-pointer items-center justify-center rounded-[8px] text-muted ${
                   menuOpen ? "bg-surface text-ink" : "hover-bg"
                 }`}
               >
@@ -2081,10 +2948,65 @@ export default function ProjectDetailPage({
           </div>
         </div>
 
+        {/* Metrics — same card language as Dashboard summary */}
+        <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="card-surface px-5 py-4">
+            <p className="text-xs font-medium text-muted">Deadline</p>
+            <p
+              className={`mt-2 text-xl font-semibold tracking-tight sm:text-2xl ${deadlineToneClass(
+                live.deadlineRelative,
+              )}`}
+            >
+              {dueLabel(live.deadlineRelative)}
+            </p>
+            <p className="mt-1 text-xs text-muted-soft">
+              {live.deadlineLabel && live.deadlineLabel !== "No deadline set"
+                ? live.deadlineLabel
+                : "No date set"}
+            </p>
+          </div>
+          <div className="card-surface px-5 py-4">
+            <p className="text-xs font-medium text-muted">Project Value</p>
+            <p className="mt-2 text-xl font-semibold tracking-tight text-ink sm:text-2xl">
+              {formatMoney(live.value, live.currency)}
+            </p>
+            <p className="mt-1 text-xs text-muted-soft">Total project</p>
+          </div>
+          <div className="card-surface px-5 py-4">
+            <p className="text-xs font-medium text-muted">Payment</p>
+            <p
+              className={`mt-2 text-xl font-semibold tracking-tight sm:text-2xl ${moneyToneClass(
+                live.paymentState === "paid" || live.remaining <= 0
+                  ? "paid"
+                  : live.paymentState === "overdue" ||
+                      live.paymentState === "failed"
+                    ? live.paymentState
+                    : "due",
+              )}`}
+            >
+              {paymentMetricLabel(
+                live.remaining,
+                live.paymentState,
+                live.currency,
+              )}
+            </p>
+            <p className="mt-1 text-xs text-muted-soft">
+              {formatMoney(live.paid, live.currency)} collected
+            </p>
+          </div>
+          <div className="card-surface px-5 py-4">
+            <p className="text-xs font-medium text-muted">Progress</p>
+            <p className="mt-2 text-xl font-semibold tracking-tight text-ink sm:text-2xl">
+              {live.progress}%
+            </p>
+            <ProgressBar className="mt-2" value={live.progress} />
+          </div>
+        </div>
+
         <div
           role="tablist"
           aria-label="Project sections"
-          className="mb-6 flex gap-1 overflow-x-auto border-b border-border"
+          className="mb-8 flex gap-1 overflow-x-auto border-b border-border"
         >
           {TABS.map((t) => {
             const selected = tab === t.id;
@@ -2102,7 +3024,7 @@ export default function ProjectDetailPage({
               >
                 {t.label}
                 {selected ? (
-                  <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-ink" />
+                  <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-accent" />
                 ) : null}
               </button>
             );
@@ -2114,11 +3036,14 @@ export default function ProjectDetailPage({
             <OverviewTab
               project={live}
               tasks={tasks}
+              invoices={invoices}
               onGoTasks={() => setTab("tasks")}
+              onOpenTask={(id) => setDetailTaskId(id)}
               onGoInvoices={() => setTab("invoices")}
               onCopyLink={() => void copyPortalLink()}
-              onSharePortal={() => setShareOpen(true)}
-              onEdit={openEditProject}
+              onOpenPortal={() => {
+                window.open(portalAbsolute, "_blank", "noopener,noreferrer");
+              }}
             />
           )}
           {tab === "tasks" && (
@@ -2126,6 +3051,9 @@ export default function ProjectDetailPage({
               tasks={tasks}
               setTasks={setTasks}
               onActivity={pushActivity}
+              detailTaskId={detailTaskId}
+              onOpenTask={(id) => setDetailTaskId(id)}
+              onCloseDetail={() => setDetailTaskId(null)}
             />
           )}
           {tab === "files" && (
@@ -2151,12 +3079,50 @@ export default function ProjectDetailPage({
         </div>
       </div>
 
-      <SharePortalModal
-        open={shareOpen}
-        onClose={() => setShareOpen(false)}
-        portalUrl={portalAbsolute}
-        projectName={live.name}
+      <TaskDetailPopup
+        task={tasks.find((t) => t.id === detailTaskId) ?? null}
+        open={Boolean(detailTaskId)}
+        onClose={() => setDetailTaskId(null)}
+        onSave={(next) => {
+          const prev = tasks;
+          setTasks((list) => list.map((t) => (t.id === next.id ? next : t)));
+          notifyProjectsChanged();
+          void backgroundSync().then((r) => {
+            if (!r.ok) {
+              setTasks(prev);
+              toast?.error("Couldn't save the task. Try again.");
+            }
+          });
+        }}
+        onDelete={(id) => {
+          setDetailTaskId(null);
+          setDetailDeleteId(id);
+        }}
       />
+
+      <ConfirmDeleteModal
+        open={Boolean(detailDeleteId)}
+        onClose={() => setDetailDeleteId(null)}
+        onConfirm={() => {
+          if (!detailDeleteId) return;
+          const prev = tasks;
+          const id = detailDeleteId;
+          setTasks((list) => list.filter((t) => t.id !== id));
+          setDetailDeleteId(null);
+          if (detailTaskId === id) setDetailTaskId(null);
+          notifyProjectsChanged();
+          void backgroundSync().then((r) => {
+            if (!r.ok) {
+              setTasks(prev);
+              toast?.error("Couldn't delete the task. Try again.");
+            }
+          });
+        }}
+        title="Delete this task?"
+        description="This will remove the task from the project."
+        confirmLabel="Delete Task"
+      />
+
       <ConfirmDeleteModal
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}

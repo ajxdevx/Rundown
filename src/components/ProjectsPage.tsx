@@ -43,6 +43,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { AppCheckbox } from "@/components/ui/AppCheckbox";
 import {
   paymentStatusIcon,
+  paymentStatusLabel,
   paymentStatusTone,
   projectStatusIcon,
   projectStatusTone,
@@ -156,7 +157,7 @@ const SORT_OPTIONS: { id: SortKey; label: string }[] = [
 
 const PAYMENT_CHOICES: { id: PaymentFilter; label: string }[] = [
   { id: "paid", label: "Paid" },
-  { id: "due", label: "Unpaid" },
+  { id: "due", label: "Due" },
   { id: "overdue", label: "Overdue" },
   { id: "processing", label: "Processing" },
   { id: "failed", label: "Failed" },
@@ -196,20 +197,7 @@ function moneyToneClass(status?: string | null) {
 }
 
 function paymentLabel(status: PaymentStatus) {
-  switch (status) {
-    case "paid":
-      return "Paid";
-    case "due":
-    case "pending":
-    case "partial":
-      return "Unpaid";
-    case "overdue":
-      return "Past due";
-    case "processing":
-      return "Processing";
-    case "failed":
-      return "Failed";
-  }
+  return paymentStatusLabel(status);
 }
 
 function projectLabel(status: ProjectStatus) {
@@ -1115,13 +1103,20 @@ export default function ProjectsPage({
                               {project.client}
                             </p>
 
-                            <span
-                              className={`inline-flex w-fit max-w-full justify-self-start items-center truncate rounded-md px-2 py-1 text-[11px] font-semibold ${deadlineToneSurface(
+                            {(() => {
+                              const dueSurface = deadlineToneSurface(
                                 project.deadlineLabel,
-                              )}`}
-                            >
-                              {project.deadlineLabel}
-                            </span>
+                              );
+                              return dueSurface ? (
+                                <span className={dueSurface}>
+                                  {project.deadlineLabel}
+                                </span>
+                              ) : (
+                                <span className="min-w-0 truncate text-sm font-medium text-muted">
+                                  {project.deadlineLabel}
+                                </span>
+                              );
+                            })()}
 
                             <div className="min-w-0">
                               <StatusBadge

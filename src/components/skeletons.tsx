@@ -1042,45 +1042,42 @@ export function ProjectsPageSkeleton({
 
 export function ProjectDetailSkeleton() {
   return (
-    <div className="w-full flex-1 px-4 py-6 sm:px-6 md:px-8 md:py-8">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:justify-between">
+    <div className="flex w-full flex-1 flex-col px-4 py-6 sm:px-6 md:px-8 md:py-8">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:justify-between">
         <div>
           <Bone className="h-8 w-56 rounded-[4px]" />
           <Bone className="mt-2 h-4 w-32 rounded-[4px]" />
         </div>
         <div className="flex gap-2">
-          <Bone className="h-10 w-28 rounded-[8px]" />
-          <Bone className="h-10 w-10 rounded-[8px]" />
+          <Bone className="h-11 w-32 rounded-[8px]" />
+          <Bone className="h-11 w-36 rounded-[8px]" />
+          <Bone className="h-11 w-11 rounded-[8px]" />
         </div>
       </div>
-      <div className="mb-6 flex gap-1 border-b border-border">
+      <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="card-surface px-5 py-4">
+            <Bone className="h-3 w-16 rounded-[4px]" />
+            <Bone className="mt-2 h-7 w-24 rounded-[4px]" />
+            <Bone className="mt-2 h-3 w-20 rounded-[4px]" />
+          </div>
+        ))}
+      </div>
+      <div className="mb-8 flex gap-1 border-b border-border">
         {Array.from({ length: 5 }).map((_, i) => (
           <Bone key={i} className="mb-3 h-5 w-16 rounded-[4px]" />
         ))}
       </div>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(17rem,0.9fr)]">
-        <div className="space-y-6">
-          <div className="card-surface p-5 sm:p-6">
-            <Bone className="h-3 w-28 rounded-[4px]" />
-            <Bone className="mt-3 h-12 w-full rounded-[4px]" />
-            <Bone className="mt-5 h-2 w-full rounded-full" />
-            <div className="mt-5 grid grid-cols-2 gap-4 border-t border-border pt-5 sm:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i}>
-                  <Bone className="h-3 w-14 rounded-[4px]" />
-                  <Bone className="mt-2 h-4 w-20 rounded-[4px]" />
-                </div>
-              ))}
-            </div>
-          </div>
-          <Bone className="h-40 w-full rounded-[var(--radius-md)]" />
+      <div className="space-y-8">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.9fr)]">
+          <Bone className="h-48 w-full rounded-[var(--radius-md)]" />
           <Bone className="h-48 w-full rounded-[var(--radius-md)]" />
         </div>
-        <div className="space-y-4">
-          <Bone className="h-44 w-full rounded-[var(--radius-md)]" />
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.9fr)]">
           <Bone className="h-40 w-full rounded-[var(--radius-md)]" />
-          <Bone className="h-32 w-full rounded-[var(--radius-md)]" />
+          <Bone className="h-40 w-full rounded-[var(--radius-md)]" />
         </div>
+        <Bone className="h-52 w-full rounded-[var(--radius-md)]" />
       </div>
     </div>
   );

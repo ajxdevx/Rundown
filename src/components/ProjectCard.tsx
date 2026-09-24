@@ -8,6 +8,7 @@ import { deadlineToneSurface } from "@/lib/deadlineLabel";
 import { ProgressBar } from "./ui/ProgressBar";
 import {
   paymentStatusIcon,
+  paymentStatusLabel,
   paymentStatusTone,
   projectStatusIcon,
   projectStatusTone,
@@ -69,21 +70,7 @@ function moneyToneClass(status?: string | null) {
 }
 
 function paymentLabel(status: PaymentStatus) {
-  switch (status) {
-    case "paid":
-      return "Paid";
-    case "due":
-    case "pending":
-      return "Unpaid";
-    case "partial":
-      return "Partial";
-    case "overdue":
-      return "Past due";
-    case "processing":
-      return "Processing";
-    case "failed":
-      return "Failed";
-  }
+  return paymentStatusLabel(status);
 }
 
 function projectLabel(status: ProjectStatus) {
@@ -173,6 +160,7 @@ function DeadlineChip({
   label: string;
   compact?: boolean;
 }) {
+  const surface = deadlineToneSurface(label);
   return (
     <span
       className={`inline-flex max-w-full items-center gap-1.5 ${
@@ -180,14 +168,14 @@ function DeadlineChip({
       }`}
     >
       <span className="shrink-0 font-medium text-muted-soft">Due:</span>
-      <span
-        className={`inline-flex max-w-full items-center gap-1 rounded-md px-2 font-semibold ${
-          compact ? "h-6 text-[11px]" : "h-7 text-xs"
-        } ${deadlineToneSurface(label)}`}
-      >
-        <Clock className="size-3 shrink-0" strokeWidth={2.25} aria-hidden />
-        <span className="truncate">{label}</span>
-      </span>
+      {surface ? (
+        <span className={surface}>
+          <Clock className="size-3 shrink-0" strokeWidth={2.25} aria-hidden />
+          <span className="truncate">{label}</span>
+        </span>
+      ) : (
+        <span className="truncate font-medium text-muted">{label}</span>
+      )}
     </span>
   );
 }

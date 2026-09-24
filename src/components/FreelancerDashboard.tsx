@@ -67,6 +67,7 @@ import { useClientModal } from "./ClientModalProvider";
 import { AppCheckbox } from "./ui/AppCheckbox";
 import {
   paymentStatusIcon,
+  paymentStatusLabel,
   paymentStatusTone,
   StatusBadge,
 } from "./ui/StatusBadge";
@@ -108,21 +109,7 @@ function greetingForHour(hour: number) {
 }
 
 function paymentLabel(status: PaymentStatus) {
-  switch (status) {
-    case "paid":
-      return "Paid";
-    case "due":
-    case "pending":
-      return "Unpaid";
-    case "partial":
-      return "Partial";
-    case "overdue":
-      return "Past due";
-    case "processing":
-      return "Processing";
-    case "failed":
-      return "Failed";
-  }
+  return paymentStatusLabel(status);
 }
 
 function SectionHead({

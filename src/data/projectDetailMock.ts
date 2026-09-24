@@ -37,12 +37,19 @@ export type ProjectDetail = {
   updatedAt: string;
 };
 
+export type ProjectTaskStatus = "todo" | "in-progress" | "completed";
+
 export type ProjectTask = {
   id: string;
   name: string;
   description?: string;
   done: boolean;
   visibleToClient: boolean;
+  /** Task workflow status — defaults from `done` when omitted. */
+  status?: ProjectTaskStatus;
+  /** Display due label, e.g. "Sep 26" or "Tomorrow". */
+  due?: string;
+  updatedAt?: string;
 };
 
 export type ProjectFile = {

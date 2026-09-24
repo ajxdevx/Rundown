@@ -27,6 +27,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { useActivity } from "@/lib/activityStore";
 import {
   paymentStatusIcon,
+  paymentStatusLabel,
   paymentStatusTone,
   projectStatusIcon,
   projectStatusTone,
@@ -83,22 +84,7 @@ function projectLabel(status: string) {
 }
 
 function paymentLabel(status: string) {
-  switch (status) {
-    case "paid":
-      return "Paid";
-    case "due":
-    case "pending":
-    case "partial":
-      return "Unpaid";
-    case "overdue":
-      return "Past due";
-    case "processing":
-      return "Processing";
-    case "failed":
-      return "Failed";
-    default:
-      return status;
-  }
+  return paymentStatusLabel(status);
 }
 
 function ClientMenu({
